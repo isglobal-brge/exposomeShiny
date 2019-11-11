@@ -101,7 +101,25 @@ ui <- navbarPage(
                        list("Manhattan-like plot",
                             "Effect of the model"),
                        selected = "Manhattan-like plot"),
-           plotOutput("exwas_as", height = "800px")
+           selectInput("exwas_outcome1", "Choose the first outcome variale:",
+                       list("whistling_chest", "flu", "rhinitis", "wheezing",
+                            "birthdate", "sex", "age",
+                            "cbmi", "blood_pre")),
+           selectInput("exwas_outcome2", "Choose the second outcome variale:",
+                       list("whistling_chest", "flu", "rhinitis", "wheezing",
+                            "birthdate", "sex", "age",
+                            "cbmi", "blood_pre")),
+           selectInput("exwas_cov1", "Choose the first adjust covariable:",
+                       list("whistling_chest", "flu", "rhinitis", "wheezing",
+                            "birthdate", "sex", "age",
+                            "cbmi", "blood_pre")),
+           selectInput("exwas_cov2", "Choose the second adjust covariable:",
+                       list("whistling_chest", "flu", "rhinitis", "wheezing",
+                            "birthdate", "sex", "age",
+                            "cbmi", "blood_pre")),
+           actionButton("exwas_plot", "Load selected data"),
+           bsModal("exwas", "", "exwas_plot", size = "large",
+                   plotOutput("exwas_as"))
            ),
   
   # REVISAR EL ERROR QUE DA
