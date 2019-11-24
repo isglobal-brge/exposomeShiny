@@ -32,91 +32,64 @@ ui <- navbarPage(
                                 "text/comma-separated-values,text/plain",
                                 ".csv")
                               ),
-                    actionButton("data_load", "Load selected data")
+                    actionButton("data_load", "Run model")
                     ),
-             column(6,
-                    selectInput("imputation", "Choose imputation method:",
-                                list("None", "LOD", "Random"), selected = "None")
-                    )
-           )
+             uiOutput("dl_lodtable_ui", align = "center"),
+             selectInput("lod_imputation_type", "Choose imputation method: ",
+                         list("LOD/sqrt(2)", "rtrunc")),
+             actionButton("lod_substitution", "Perform LOD imputation with the values provided"))
            ),
   tabPanel('Missing data',
            plotOutput("missPlot")
            ),
-  tabPanel('Exposures normality',
+  tabPanel('Check Normality',
            DTOutput("exp_normality"),
            actionButton(inputId = "exp_norm_plot_button",
                         label = "Plot histogram of selected exposure"),
            bsModal("hist", "", "exp_norm_plot_button", size = "large",
                    plotOutput("exp_normality_graph"))
           ),
-  tabPanel('Exposures behaviour',
-           selectInput("family", "Choose a family:",
-                       list("All", "Air Pollutants", "Metals", "PBDEs", "Organochlorines",
-                            "Bisphenol A", "Water Pollutants", "Built Environment",
-                            "Cotinine", "Home Environment", "Phthalates", "Noise",
-                            "PFOAs", "Temperature"), selected = "All"),
-           selectInput("group", "Choose a grouping factor:",
-                       list("None", "whistling_chest", "flu", "rhinitis", "wheezing",
-                            "birthdate", "sex", "age",
-                            "cbmi", "blood_pre"), selected = "None"),
-           selectInput("group2", "Choose a second grouping factor:",
-                       list("None", "whistling_chest", "flu", "rhinitis", "wheezing",
-                            "birthdate", "sex", "age",
-                            "cbmi", "blood_pre"), selected = "None"),
+  tabPanel('Exposures Description',
+           uiOutput("eb_family_ui"),
+           uiOutput("eb_group1_ui"),
+           uiOutput("eb_group2_ui"),
            plotOutput("exp_behaviour")
           ),
   
   # IMPLEMENTAR VISUALIZACIÓN 3D
   
-  tabPanel('Exposures PCA',
+  tabPanel('PCA Visualization',
            selectInput("pca_set", "Choose a set:",
                        list("all", "samples", "exposures"), selected = "all"),
-           selectInput("pca_pheno", "Choose a phenotype (only for samples set):",
-                       list("None", "whistling_chest", "flu", "rhinitis", "wheezing",
-                            "birthdate", "sex", "age","cbmi", "blood_pre"), selected = "None"),
+           uiOutput("pca_group1_ui"),
            plotOutput("exp_pca")
            ),
-  tabPanel('Exposure Correlation',
-           plotOutput("exp_correlation")
-           ),
-  
-  #REVISAR ERROR MARGENES
-  
-  tabPanel('Individuals clustering',
-           plotOutput("ind_clustering", width = "100%")
-          ),
-  tabPanel('Exposure Association',
+  tabPanel('PCA association with exposures',
            selectInput("ass_choice", "Choose an association approach:",
                        list("Exposures to the principal components",
                             "Phenotypes to the principal components"),
                        selected = "Exposures to the principal components"),
            plotOutput("exp_association", height = "600px")
+  ),
+  tabPanel('Exposure Correlation',
+           plotOutput("exp_correlation")
            ),
+  tabPanel('Cluster Exposures',
+           plotOutput("ind_clustering", width = "100%")
+          ),
+  
   
   # QUE INPUTS QUEREMOS PARA VARIAR ESTE PLOT?
   
-  tabPanel('ExWAS Association Studies',
+  tabPanel('ExWAS',
            selectInput("exwas_choice", "Choose the ExWAS plot:",
                        list("Manhattan-like plot",
                             "Effect of the model"),
                        selected = "Manhattan-like plot"),
-           selectInput("exwas_outcome1", "Choose the first outcome variale:",
-                       list("whistling_chest", "flu", "rhinitis", "wheezing",
-                            "birthdate", "sex", "age",
-                            "cbmi", "blood_pre")),
-           selectInput("exwas_outcome2", "Choose the second outcome variale:",
-                       list("whistling_chest", "flu", "rhinitis", "wheezing",
-                            "birthdate", "sex", "age",
-                            "cbmi", "blood_pre")),
-           selectInput("exwas_cov1", "Choose the first adjust covariable:",
-                       list("whistling_chest", "flu", "rhinitis", "wheezing",
-                            "birthdate", "sex", "age",
-                            "cbmi", "blood_pre")),
-           selectInput("exwas_cov2", "Choose the second adjust covariable:",
-                       list("whistling_chest", "flu", "rhinitis", "wheezing",
-                            "birthdate", "sex", "age",
-                            "cbmi", "blood_pre")),
+           uiOutput("exwas_group1_ui"),
+           uiOutput("exwas_group2_ui"),
+           uiOutput("exwas_group3_ui"),
+           uiOutput("exwas_group4_ui"),
            actionButton("exwas_plot", "Load selected data"),
            bsModal("exwas", "", "exwas_plot", size = "large",
                    plotOutput("exwas_as"))
@@ -124,7 +97,7 @@ ui <- navbarPage(
   
   # REVISAR EL ERROR QUE DA
   
-  tabPanel('Multivariate Exposome Analysis',
+  tabPanel('Multivariate ExWAS (DSA and Elastic Net)',
            plotOutput("mea")
            ),
   fluid = TRUE

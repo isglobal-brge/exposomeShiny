@@ -1,21 +1,22 @@
 server <- function(input, output, session) {
-  #path <- file.path(path.package("rexposome"), "extdata")
-  #description <- file.path(path, "description.csv")
-  #phenotype <- file.path(path, "phenotypes.csv")
-  #exposures <- file.path(path, "exposures.csv")
+  DEVELOPER_MODE <- 1 # 1: developer mode activated
+  if (DEVELOPER_MODE == 0) {
+    path <- file.path(path.package("rexposome"), "extdata")
+    description <- file.path(path, "description.csv")
+    phenotype <- file.path(path, "phenotypes.csv")
+    #exposures <- file.path(path, "exposures.csv")
+    exposures <- file.path("/Users/Escriba/OneDrive/Estudis/UAB/1A/TFM/git_repo/exposomeShiny/data/exposures_lod_test.csv")
+    exposom <- NULL
+    exposom$exp <- readExposome(exposures = exposures, description = description,
+                        phenotype = phenotype, 
+                        exposures.samCol = "idnum", description.expCol = "Exposure", 
+                        description.famCol = "Family", phenotype.samCol = "idnum")
+    exposom$exp_std <- standardize(exposom$exp, method = "normal")
+    exposom$exp_pca <- pca(exposom$exp_std)
+    exposom$nm <- normalityTest(exposom$exp)
+  }
   
-  exposom <- reactiveValues(exp = NULL, exp_std = NULL, exp_pca = NULL, nm = NULL)
-  #exposom <- NULL
-  #exposom$exp <- readExposome(exposures = exposures, description = description,
-  #                    phenotype = phenotype, 
-  #                    exposures.samCol = "idnum", description.expCol = "Exposure", 
-  #                    description.famCol = "Family", phenotype.samCol = "idnum")
-  #exposom$exp_std <- standardize(exposom$exp, method = "normal")
-  #exposom$exp_pca <- pca(exposom$exp_std)
-  #exposom$nm <- normalityTest(exposom$exp)
-  
-  
-  
+  exposom <- reactiveValues(exp = NULL, exp_std = NULL, exp_pca = NULL, nm = NULL, lod_candidates = NULL, lod_candidates_index = NULL)
   observeEvent(input$data_load, {
     description_file <- input$description
     description <- description_file$datapath
@@ -23,48 +24,89 @@ server <- function(input, output, session) {
     phenotypes <- phenotypes_file$datapath
     exposures_file <- input$exposures
     exposures <- exposures_file$datapath
-    if (input$imputation == "None") {
-      withProgress(message = 'Loading the selected data', value = 0, {
-      exposom$exp <- readExposome(exposures = exposures, description = description, 
-                          phenotype = phenotypes, exposures.samCol = "idnum", 
-                          description.expCol = "Exposure", 
-                          description.famCol = "Family", phenotype.samCol = "idnum")
-      incProgress(0.2)
-      exposom$exp_std <- standardize(exposom$exp, method = "normal")
-      incProgress(0.4)
-      exposom$exp_pca <- pca(exposom$exp_std)
-      incProgress(0.7)
-      exposom$nm <- normalityTest(exposom$exp)
-      })
-    }
-    else if (input$imputation == "LOD") {
-      withProgress(message = 'Loading the selected data and imputating', value = 0, {
-      dd <- read.csv(description, header=TRUE, stringsAsFactors=FALSE)
-      ee <- read.csv(exposures, header=TRUE)
-      pp <- read.csv(phenotypes, header=TRUE)
-      rownames(ee) <- ee$idnum
-      rownames(pp) <- pp$idnum
-      dta <- cbind(ee[ , -1], pp[ , -1])
-      for(ii in c(1:54, 59:88, 96:97)) {
-        dta[, ii] <- as.numeric(dta[ , ii])
-      }
-      for(ii in c(55:58, 89:95)) {
-        dta[ , ii] <- as.factor(dta[ , ii])
-      }
-      incProgress(0.3)
-      imp <- mice(dta[ , -93], pred = quickpred(dta[ , -93], mincor = 0.2, 
-                    minpuc = 0.4), seed = 38788, m = 5, maxit = 10, printFlag = FALSE)
-      incProgress(0.7)
-      # FALTA IMPLEMENTAR LO DEL ACTION NUMBER DISTINTO DE 0
-      me <- complete(imp, action = 0)
-      me[ , ".imp"] <- 0
-      me[ , ".id"] <- rownames(me)
-      exposom$exp <- loadImputed(data = me, description = dd, 
-                            description.famCol = "Family", 
-                            description.expCol = "Exposure")
-      })
+    
+    withProgress(message = 'Loading the selected data', value = 0, {
+    exposom$exp <- readExposome(exposures = exposures, description = description, 
+                        phenotype = phenotypes, exposures.samCol = "idnum", 
+                        description.expCol = "Exposure", 
+                        description.famCol = "Family", phenotype.samCol = "idnum")
+    incProgress(0.2)
+    exposom$exp_std <- standardize(exposom$exp, method = "normal")
+    incProgress(0.4)
+    exposom$exp_pca <- pca(exposom$exp_std)
+    incProgress(0.7)
+    exposom$nm <- normalityTest(exposom$exp)
+    })
+    phenotypes_list <- as.list(phenotypeNames(exposom$exp))
+    exposure_names <- as.list(familyNames(exposom$exp))
+    exposures_values <- as.data.table(read.csv(exposures))
+    description_values <- read.csv(description)
+    exposom$lod_candidates <- unique(as.list(as.character(description_values[which(exposures_values == -1,
+                                                                                   arr.ind = TRUE)[,2] - 1,2])))
+    exposom$lod_candidates_index <- which(exposures_values == -1, arr.ind = TRUE)
+    exposom$lod_candidates <- data.frame(matrix(unlist(exposom$lod_candidates)), seq(1,length(exposom$lod_candidates)))
+    colnames(exposom$lod_candidates) <- c("Exposure","LOD")
+    if (length(exposom$lod_candidates) != 0) {
+      output$dl_lodtable_ui <- renderUI({
+        DTOutput("lod_data_entry_table", width = "60%")
+    })
     }
   })
+  output$lod_data_entry_table <- renderDT(
+    exposom$lod_candidates, selection = 'none', 
+    server = F, editable = list(target = "cell", disable = list(columns = 1)),
+    options=list(columnDefs = list(list(visible=FALSE, targets=c(0)))))
+  proxy = dataTableProxy('lod_data_entry_table')
+  observeEvent(input$lod_data_entry_table_cell_edit, {
+    info = input$lod_data_entry_table_cell_edit
+    i = info$row
+    j = info$col
+    v = info$value
+    exposom$lod_candidates[i, j] <<- DT::coerceValue(v, exposom$lod_candidates[i, j])
+    replaceData(proxy, exposom$lod_candidates, resetPaging = FALSE)
+  })
+  observeEvent(input$lod_substitution, {
+    col_cont <- 1
+    exposom$lod_candidates <- as.data.table(exposom$lod_candidates)
+    exposom$lod_candidates[,LOD := LOD/sqrt(2)]
+    for (i in 1:nrow(exposom$lod_candidates_index)) {
+      col <- exposom$lod_candidates_index[i,2]
+      exposures_values[exposom$lod_candidates_index[i,1], 
+                       exposom$lod_candidates_index[i,2] := exposom$lod_candidates[col_cont, 2]]
+      if (i + 1 <= nrow(exposom$lod_candidates_index)) {
+      if (exposom$lod_candidates_index[i+1,2] != col) {col_cont <- col_cont + 1}}
+    }
+  })
+  output$eb_family_ui <- renderUI({
+    selectInput("family", "Choose a family:",
+                exposure_names)
+  })
+  output$eb_group1_ui <- renderUI({
+    selectInput("group", "Choose a grouping factor:", phenotypes_list)
+  })
+  output$eb_group2_ui <- renderUI({
+    selectInput("group2", "Choose a grouping factor:", phenotypes_list)
+  })
+  output$pca_group1_ui <- renderUI({
+    selectInput("group_pca", "Choose a grouping factor (only for samples set) :", phenotypes_list)
+  })
+  output$exwas_group1_ui <- renderUI({
+    selectInput("exwas_outcome1", "Choose the first outcome variale:",
+                phenotypes_list)
+  })
+  output$exwas_group2_ui <- renderUI({
+    selectInput("exwas_outcome2", "Choose the second outcome variale:",
+                phenotypes_list)
+  })
+  output$exwas_group3_ui <- renderUI({
+    selectInput("exwas_cov1", "Choose the first adjust covariable:",
+                phenotypes_list)
+  })
+  output$exwas_group4_ui <- renderUI({
+    selectInput("exwas_cov2", "Choose the second adjust covariable:",
+                phenotypes_list)
+  })
+  
   output$missPlot <- renderPlot(
     plotMissings(exposom$exp, set = "exposures")
   )
@@ -97,7 +139,7 @@ server <- function(input, output, session) {
   })
   output$exp_pca <- renderPlot({
     set_pca = input$pca_set
-    pheno_pca = input$pca_pheno
+    pheno_pca = input$group_pca
     if (set_pca == "samples" && pheno_pca != "None") {
       plotPCA(exposom$exp_pca, set = set_pca, phenotype = pheno_pca)
     }
@@ -148,3 +190,34 @@ server <- function(input, output, session) {
     + ggtitle("Exposome Association Study - Multivariate Approach")
   })
 }
+
+
+
+
+# else if (input$imputation == "LOD") {
+#   withProgress(message = 'Loading the selected data and imputating', value = 0, {
+#     dd <- read.csv(description, header=TRUE, stringsAsFactors=FALSE)
+#     ee <- read.csv(exposures, header=TRUE)
+#     pp <- read.csv(phenotypes, header=TRUE)
+#     rownames(ee) <- ee$idnum
+#     rownames(pp) <- pp$idnum
+#     dta <- cbind(ee[ , -1], pp[ , -1])
+#     for(ii in c(1:54, 59:88, 96:97)) {
+#       dta[, ii] <- as.numeric(dta[ , ii])
+#     }
+#     for(ii in c(55:58, 89:95)) {
+#       dta[ , ii] <- as.factor(dta[ , ii])
+#     }
+#     incProgress(0.3)
+#     imp <- mice(dta[ , -93], pred = quickpred(dta[ , -93], mincor = 0.2, 
+#                                               minpuc = 0.4), seed = 38788, m = 5, maxit = 10, printFlag = FALSE)
+#     incProgress(0.7)
+#     # FALTA IMPLEMENTAR LO DEL ACTION NUMBER DISTINTO DE 0
+#     me <- complete(imp, action = 0)
+#     me[ , ".imp"] <- 0
+#     me[ , ".id"] <- rownames(me)
+#     exposom$exp <- loadImputed(data = me, description = dd, 
+#                                description.famCol = "Family", 
+#                                description.expCol = "Exposure")
+#   })
+# }
