@@ -4,6 +4,8 @@ library(rexposome)
 library(mice)
 library(DT)
 library(ggplot2)
+library(data.table)
+library(truncdist)
 
 # Define UI for application that draws a histogram
 ui <- navbarPage(
@@ -35,10 +37,10 @@ ui <- navbarPage(
                     actionButton("data_load", "Run model")
                     ),
              uiOutput("dl_lodtable_ui", align = "center"),
-             selectInput("lod_imputation_type", "Choose imputation method: ",
-                         list("LOD/sqrt(2)", "rtrunc")),
-             actionButton("lod_substitution", "Perform LOD imputation with the values provided"))
+             uiOutput("lod_imputation_type", align = "center"),
+             uiOutput("lod_substitution", align = "center")
            ),
+  ),
   tabPanel('Missing data',
            plotOutput("missPlot"),
            actionButton("impute_missings", "Impute missing values")

@@ -16,8 +16,10 @@ server <- function(input, output, session) {
     exposom$nm <- normalityTest(exposom$exp)
   }
   
-  exposom <- reactiveValues(exp = NULL, exp_std = NULL, exp_pca = NULL, nm = NULL, lod_candidates = NULL, lod_candidates_index = NULL, normal_false = NULL)
+  exposom <- reactiveValues(exp = NULL, exp_std = NULL, exp_pca = NULL, nm = NULL, lod_candidates = NULL, lod_candidates_index = NULL, normal_false = NULL, exposures_values = NULL)
   files <- reactiveValues(description = NULL, phenotypes = NULL, exposures = NULL)
+  exposom_lists <- reactiveValues(phenotypes_list = NULL, exposure_names = NULL)
+  
   observeEvent(input$data_load, {
     description_file <- input$description
     files$description <- description_file$datapath
@@ -43,19 +45,26 @@ server <- function(input, output, session) {
     exposom$normal_false[, Method := "log"]
     exposom$normal_false <- as.data.frame(exposom$normal_false)
     })
-    phenotypes_list <- as.list(phenotypeNames(exposom$exp))
-    exposure_names <- as.list(familyNames(exposom$exp))
-    exposures_values <- as.data.table(read.csv(files$exposures))
+    exposom_lists$phenotypes_list <- as.list(phenotypeNames(exposom$exp))
+    exposom_lists$exposure_names <- as.list(familyNames(exposom$exp))
+    exposom$exposures_values <- as.data.table(read.csv(files$exposures))
     description_values <- read.csv(files$description)
-    exposom$lod_candidates <- unique(as.list(as.character(description_values[which(exposures_values == -1,
+    exposom$lod_candidates <- unique(as.list(as.character(description_values[which(exposom$exposures_values == -1,
                                                                                    arr.ind = TRUE)[,2] - 1,2])))
-    exposom$lod_candidates_index <- which(exposures_values == -1, arr.ind = TRUE)
+    exposom$lod_candidates_index <- which(exposom$exposures_values == -1, arr.ind = TRUE)
     if (length(exposom$lod_candidates) != 0) {
       exposom$lod_candidates <- data.frame(matrix(unlist(exposom$lod_candidates)), seq(1,length(exposom$lod_candidates)))
       colnames(exposom$lod_candidates) <- c("Exposure","LOD")
       output$dl_lodtable_ui <- renderUI({
         DTOutput("lod_data_entry_table", width = "60%")
     })
+      output$lod_imputation_type <- renderUI({
+        selectInput("lod_imputation_type_input", "Choose imputation method: ",
+                    list("LOD/sqrt(2)", "rtrunc"))
+      })
+      output$lod_substitution <- renderUI({
+        actionButton("lod_substitution_input", "Perform LOD imputation with the values provided")
+      })
     }
   })
   output$lod_data_entry_table <- renderDT(
@@ -71,46 +80,59 @@ server <- function(input, output, session) {
     exposom$lod_candidates[i, j] <<- DT::coerceValue(v, exposom$lod_candidates[i, j])
     replaceData(proxy, exposom$lod_candidates, resetPaging = FALSE)
   })
-  observeEvent(input$lod_substitution, {
+  observeEvent(input$lod_substitution_input, {
     col_cont <- 1
     exposom$lod_candidates <- as.data.table(exposom$lod_candidates)
-    exposom$lod_candidates[,LOD := LOD/sqrt(2)]
+    if (input$lod_imputation_type_input == "LOD/sqrt(2)") {
+      exposom$lod_candidates[,LOD := LOD/sqrt(2)]
+    }
     for (i in 1:nrow(exposom$lod_candidates_index)) {
-      col <- exposom$lod_candidates_index[i,2]
-      exposures_values[exposom$lod_candidates_index[i,1], 
-                       exposom$lod_candidates_index[i,2] := exposom$lod_candidates[col_cont, 2]]
-      if (i + 1 <= nrow(exposom$lod_candidates_index)) {
-      if (exposom$lod_candidates_index[i+1,2] != col) {col_cont <- col_cont + 1}}
+      if (input$lod_imputation_type_input == "LOD/sqrt(2)") {
+        col <- exposom$lod_candidates_index[i,2]
+        exposom$exposures_values[exposom$lod_candidates_index[i,1], 
+                         exposom$lod_candidates_index[i,2] := exposom$lod_candidates[col_cont, 2]]
+        if (i + 1 <= nrow(exposom$lod_candidates_index)) {
+          if (exposom$lod_candidates_index[i+1,2] != col) {col_cont <- col_cont + 1}}
+      }
+      else {
+        col <- exposom$lod_candidates_index[i,2]
+        val <- rtrunc(sum(exposom$lod_candidates_index[,2] == col), 
+                      spec="lnorm", a=0, b=as.numeric(exposom$lod_candidates[col_cont, 2]))
+        exposom$exposures_values[exposom$lod_candidates_index[i,1], 
+                         exposom$lod_candidates_index[i,2] := val[1]]
+        if (i + 1 <= nrow(exposom$lod_candidates_index)) {
+          if (exposom$lod_candidates_index[i+1,2] != col) {col_cont <- col_cont + 1}}
+      }
     }
   })
   output$eb_family_ui <- renderUI({
     selectInput("family", "Choose a family:",
-                exposure_names)
+                exposom_lists$exposure_names)
   })
   output$eb_group1_ui <- renderUI({
-    selectInput("group", "Choose a grouping factor:", phenotypes_list)
+    selectInput("group", "Choose a grouping factor:", exposom_lists$phenotypes_list)
   })
   output$eb_group2_ui <- renderUI({
-    selectInput("group2", "Choose a grouping factor:", phenotypes_list)
+    selectInput("group2", "Choose a grouping factor:", exposom_lists$phenotypes_list)
   })
   output$pca_group1_ui <- renderUI({
-    selectInput("group_pca", "Choose a grouping factor (only for samples set) :", phenotypes_list)
+    selectInput("group_pca", "Choose a grouping factor (only for samples set) :", exposom_lists$phenotypes_list)
   })
   output$exwas_group1_ui <- renderUI({
     selectInput("exwas_outcome1", "Choose the first outcome variale:",
-                phenotypes_list)
+                exposom_lists$phenotypes_list)
   })
   output$exwas_group2_ui <- renderUI({
     selectInput("exwas_outcome2", "Choose the second outcome variale:",
-                phenotypes_list)
+                exposom_lists$phenotypes_list)
   })
   output$exwas_group3_ui <- renderUI({
     selectInput("exwas_cov1", "Choose the first adjust covariable:",
-                phenotypes_list)
+                exposom_lists$phenotypes_list)
   })
   output$exwas_group4_ui <- renderUI({
     selectInput("exwas_cov2", "Choose the second adjust covariable:",
-                phenotypes_list)
+                exposom_lists$phenotypes_list)
   })
   
   output$missPlot <- renderPlot(
@@ -230,6 +252,8 @@ server <- function(input, output, session) {
       rownames(ee) <- ee$idnum
       rownames(pp) <- pp$idnum
       
+      incProgress(0.2)
+      
       dta <- cbind(ee[ , -1], pp[ , -1])
       dta[1:3, c(1:3, 52:56)]
       
@@ -240,8 +264,12 @@ server <- function(input, output, session) {
         dta[ , ii] <- as.factor(dta[ , ii])
       }
       
+      incProgress(0.5)
+      
       imp <- mice(dta[ , -52], pred = quickpred(dta[ , -52], mincor = 0.2, 
                                                 minpuc = 0.4), seed = 38788, m = 5, maxit = 10, printFlag = FALSE)
+      
+      incProgress(0.8)
       
       for(set in 1:5) {
         im <- mice::complete(imp, action = set)
