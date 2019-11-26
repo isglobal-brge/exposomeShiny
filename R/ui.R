@@ -40,14 +40,18 @@ ui <- navbarPage(
              actionButton("lod_substitution", "Perform LOD imputation with the values provided"))
            ),
   tabPanel('Missing data',
-           plotOutput("missPlot")
+           plotOutput("missPlot"),
+           actionButton("impute_missings", "Impute missing values")
            ),
   tabPanel('Check Normality',
            DTOutput("exp_normality"),
            actionButton(inputId = "exp_norm_plot_button",
                         label = "Plot histogram of selected exposure"),
            bsModal("hist", "", "exp_norm_plot_button", size = "large",
-                   plotOutput("exp_normality_graph"))
+                   plotOutput("exp_normality_graph")),
+           actionButton("normal_false_table", "Show false"),
+           bsModal("normal_false", "", "normal_false_table", size = "large",
+                   actionButton("normalize_values", "Normalize"), DTOutput("exp_normality_false"))
           ),
   tabPanel('Exposures Description',
            uiOutput("eb_family_ui"),
