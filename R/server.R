@@ -17,17 +17,18 @@ server <- function(input, output, session) {
   }
   
   exposom <- reactiveValues(exp = NULL, exp_std = NULL, exp_pca = NULL, nm = NULL, lod_candidates = NULL, lod_candidates_index = NULL, normal_false = NULL)
+  files <- reactiveValues(description = NULL, phenotypes = NULL, exposures = NULL)
   observeEvent(input$data_load, {
     description_file <- input$description
-    description <- description_file$datapath
+    files$description <- description_file$datapath
     phenotypes_file <- input$phenotypes
-    phenotypes <- phenotypes_file$datapath
+    files$phenotypes <- phenotypes_file$datapath
     exposures_file <- input$exposures
-    exposures <- exposures_file$datapath
+    files$exposures <- exposures_file$datapath
     
     withProgress(message = 'Loading the selected data', value = 0, {
-    exposom$exp <- readExposome(exposures = exposures, description = description, 
-                        phenotype = phenotypes, exposures.samCol = "idnum", 
+    exposom$exp <- readExposome(exposures = files$exposures, description = files$description, 
+                        phenotype = files$phenotypes, exposures.samCol = "idnum", 
                         description.expCol = "Exposure", 
                         description.famCol = "Family", phenotype.samCol = "idnum")
     incProgress(0.2)
@@ -44,8 +45,8 @@ server <- function(input, output, session) {
     })
     phenotypes_list <- as.list(phenotypeNames(exposom$exp))
     exposure_names <- as.list(familyNames(exposom$exp))
-    exposures_values <- as.data.table(read.csv(exposures))
-    description_values <- read.csv(description)
+    exposures_values <- as.data.table(read.csv(files$exposures))
+    description_values <- read.csv(files$description)
     exposom$lod_candidates <- unique(as.list(as.character(description_values[which(exposures_values == -1,
                                                                                    arr.ind = TRUE)[,2] - 1,2])))
     exposom$lod_candidates_index <- which(exposures_values == -1, arr.ind = TRUE)
@@ -219,30 +220,42 @@ server <- function(input, output, session) {
   })
   observeEvent(input$impute_missings, {
     withProgress(message = 'Imputating the missing values', value = 0, {
-      browser()
-      dd <- read.csv(description, header=TRUE, stringsAsFactors=FALSE)
-      ee <- read.csv(exposures, header=TRUE)
-      pp <- read.csv(phenotype, header=TRUE)
+      dd <- read.csv(files$description, header=TRUE, stringsAsFactors=FALSE)
+      ee <- read.csv(files$exposures, header=TRUE)
+      pp <- read.csv(files$phenotypes, header=TRUE)
+      
+      dd <- dd[-which(dd$Family %in% c("Phthalates", "PBDEs", "PFOAs", "Metals")), ]
+      ee <- ee[ , c("idnum", dd$Exposure)]
+      
       rownames(ee) <- ee$idnum
       rownames(pp) <- pp$idnum
+      
       dta <- cbind(ee[ , -1], pp[ , -1])
-      for(ii in c(1:54, 59:88, 96:97)) {
+      dta[1:3, c(1:3, 52:56)]
+      
+      for(ii in c(1:13, 18:47, 55:56)) {
         dta[, ii] <- as.numeric(dta[ , ii])
       }
-      for(ii in c(55:58, 89:95)) {
+      for(ii in c(14:17, 48:54)) {
         dta[ , ii] <- as.factor(dta[ , ii])
       }
-      incProgress(0.3)
-      imp <- mice(dta[ , -93], pred = quickpred(dta[ , -93], mincor = 0.2,
+      
+      imp <- mice(dta[ , -52], pred = quickpred(dta[ , -52], mincor = 0.2, 
                                                 minpuc = 0.4), seed = 38788, m = 5, maxit = 10, printFlag = FALSE)
-      incProgress(0.7)
-      # FALTA IMPLEMENTAR LO DEL ACTION NUMBER DISTINTO DE 0
-      me <- complete(imp, action = 0)
-      me[ , ".imp"] <- 0
-      me[ , ".id"] <- rownames(me)
-      exposom$exp <- loadImputed(data = me, description = dd,
-                                 description.famCol = "Family",
-                                 description.expCol = "Exposure")
+      
+      for(set in 1:5) {
+        im <- mice::complete(imp, action = set)
+        im[ , ".imp"] <- set
+        im[ , ".id"] <- rownames(im)
+        me <- rbind(me, im)
+      }
+      me <- me[ , c(".imp", ".id", colnames(me)[-(97:98)])]
+      rownames(me) <- 1:nrow(me)
+      dim(me)
+      
+      ex_imp <- loadImputed(data = me, description = dd, 
+                            description.famCol = "Family", 
+                            description.expCol = "Exposure")
     })
   })
 }
