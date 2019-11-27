@@ -118,23 +118,14 @@ server <- function(input, output, session) {
   output$pca_group1_ui <- renderUI({
     selectInput("group_pca", "Choose a grouping factor (only for samples set) :", exposom_lists$phenotypes_list)
   })
-  output$exwas_group1_ui <- renderUI({
-    selectInput("exwas_outcome1", "Choose the first outcome variale:",
+  output$exwas_outcome_ui <- renderUI({
+    selectInput("exwas_outcome", "Choose the outcome variale:",
                 exposom_lists$phenotypes_list)
   })
-  output$exwas_group2_ui <- renderUI({
-    selectInput("exwas_outcome2", "Choose the second outcome variale:",
-                exposom_lists$phenotypes_list)
+  output$exwas_covariables_ui <- renderUI({
+    selectInput("exwas_covariables", "Choose the covariable(s):",
+                exposom_lists$phenotypes_list, multiple = TRUE)
   })
-  output$exwas_group3_ui <- renderUI({
-    selectInput("exwas_cov1", "Choose the first adjust covariable:",
-                exposom_lists$phenotypes_list)
-  })
-  output$exwas_group4_ui <- renderUI({
-    selectInput("exwas_cov2", "Choose the second adjust covariable:",
-                exposom_lists$phenotypes_list)
-  })
-  
   output$missPlot <- renderPlot(
     plotMissings(exposom$exp, set = "exposures")
   )
@@ -219,20 +210,24 @@ server <- function(input, output, session) {
     }
   })
   output$exwas_as <- renderPlot({
-      outcome1 <- input$exwas_outcome1
-      outcome2 <- input$exwas_outcome2
-      cov1 <- input$exwas_cov1
-      cov2 <- input$exwas_cov2
-      fl_ew <- exwas(exposom$exp, formula = as.formula(paste(outcome1, "~", cov1 ,"+", cov2)),
-                     family = "gaussian")
-      we_ew <- exwas(exposom$exp, formula = as.formula(paste(outcome2, "~", cov1 ,"+", cov2)),
-                     family = "binomial")
+      outcome <- input$exwas_outcome
+      cov <- input$exwas_covariables
+      family_out <- input$exwas_output_family
+      formula_plot <- paste(outcome, "~", cov[1])
+      if (length(cov) > 1) {
+        for (i in 2:length(cov)) {
+          formula_plot <- paste(formula_plot, "+", cov[i])
+        }
+      }
+      formula_plot <- as.formula(formula_plot)
+      fl <- exwas(exposom$exp, formula = formula_plot,
+                     family = family_out)
       clr <- rainbow(length(familyNames(exposom$exp)))
       names(clr) <- familyNames(exposom$exp)
       if (input$exwas_choice == "Manhattan-like plot") {
-        plotExwas(fl_ew, we_ew, color = clr) + 
+        plotExwas(fl, color = clr) + 
           ggtitle("Exposome Association Study - Univariate Approach")}
-      else {plotEffect(fl_ew)}
+      else {plotEffect(fl)}
   })
   output$mea <- renderPlot({
     bl_mew <- mexwas(exposom$exp_std, phenotype = "blood_pre", family = "gaussian")
