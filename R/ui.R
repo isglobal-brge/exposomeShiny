@@ -6,9 +6,11 @@ library(DT)
 library(ggplot2)
 library(data.table)
 library(truncdist)
+library(shinyalert)
 
 # Define UI for application that draws a histogram
 ui <- navbarPage(
+  useShinyalert(),  # Set up shinyalert
   
   # Application title
   title = "rexposome",
@@ -37,6 +39,7 @@ ui <- navbarPage(
                     actionButton("data_load", "Run model")
                     ),
              uiOutput("dl_lodtable_ui", align = "center"),
+             uiOutput("lod_help", align = "center"),
              uiOutput("lod_imputation_type", align = "center"),
              uiOutput("lod_substitution", align = "center")
            ),

@@ -53,6 +53,9 @@ server <- function(input, output, session) {
                                                                                    arr.ind = TRUE)[,2] - 1,2])))
     exposom$lod_candidates_index <- which(exposom$exposures_values == -1, arr.ind = TRUE)
     if (length(exposom$lod_candidates) != 0) {
+      output$lod_help <- renderUI({
+        actionButton("lod_help_button", "Help about the LOD substitution")
+      })
       exposom$lod_candidates <- data.frame(matrix(unlist(exposom$lod_candidates)), seq(1,length(exposom$lod_candidates)))
       colnames(exposom$lod_candidates) <- c("Exposure","LOD")
       output$dl_lodtable_ui <- renderUI({
@@ -66,6 +69,9 @@ server <- function(input, output, session) {
         actionButton("lod_substitution_input", "Perform LOD imputation with the values provided")
       })
     }
+  })
+  observeEvent(input$lod_help_button, {
+    shinyalert("LOD imputation info", "to_complete", type = "info")
   })
   output$lod_data_entry_table <- renderDT(
     exposom$lod_candidates, selection = 'none', 
@@ -81,29 +87,33 @@ server <- function(input, output, session) {
     replaceData(proxy, exposom$lod_candidates, resetPaging = FALSE)
   })
   observeEvent(input$lod_substitution_input, {
-    col_cont <- 1
-    exposom$lod_candidates <- as.data.table(exposom$lod_candidates)
-    if (input$lod_imputation_type_input == "LOD/sqrt(2)") {
-      exposom$lod_candidates[,LOD := LOD/sqrt(2)]
-    }
-    for (i in 1:nrow(exposom$lod_candidates_index)) {
+    withProgress(message = 'Performing LOD imputation', value = 0, {
+      col_cont <- 1
+      exposom$lod_candidates <- as.data.table(exposom$lod_candidates)
       if (input$lod_imputation_type_input == "LOD/sqrt(2)") {
-        col <- exposom$lod_candidates_index[i,2]
-        exposom$exposures_values[exposom$lod_candidates_index[i,1], 
-                         exposom$lod_candidates_index[i,2] := exposom$lod_candidates[col_cont, 2]]
-        if (i + 1 <= nrow(exposom$lod_candidates_index)) {
-          if (exposom$lod_candidates_index[i+1,2] != col) {col_cont <- col_cont + 1}}
+        exposom$lod_candidates[,LOD := LOD/sqrt(2)]
       }
-      else {
-        col <- exposom$lod_candidates_index[i,2]
-        val <- rtrunc(sum(exposom$lod_candidates_index[,2] == col), 
-                      spec="lnorm", a=0, b=as.numeric(exposom$lod_candidates[col_cont, 2]))
-        exposom$exposures_values[exposom$lod_candidates_index[i,1], 
-                         exposom$lod_candidates_index[i,2] := val[1]]
-        if (i + 1 <= nrow(exposom$lod_candidates_index)) {
-          if (exposom$lod_candidates_index[i+1,2] != col) {col_cont <- col_cont + 1}}
+      for (i in 1:nrow(exposom$lod_candidates_index)) {
+        if (input$lod_imputation_type_input == "LOD/sqrt(2)") {
+          col <- exposom$lod_candidates_index[i,2]
+          exposom$exposures_values[exposom$lod_candidates_index[i,1], 
+                           exposom$lod_candidates_index[i,2] := exposom$lod_candidates[col_cont, 2]]
+          if (i + 1 <= nrow(exposom$lod_candidates_index)) {
+            if (exposom$lod_candidates_index[i+1,2] != col) {col_cont <- col_cont + 1}}
+          incProgress(0.5)
+        }
+        else {
+          col <- exposom$lod_candidates_index[i,2]
+          val <- rtrunc(sum(exposom$lod_candidates_index[,2] == col), 
+                        spec="lnorm", a=0, b=as.numeric(exposom$lod_candidates[col_cont, 2]))
+          exposom$exposures_values[exposom$lod_candidates_index[i,1], 
+                           exposom$lod_candidates_index[i,2] := val[1]]
+          if (i + 1 <= nrow(exposom$lod_candidates_index)) {
+            if (exposom$lod_candidates_index[i+1,2] != col) {col_cont <- col_cont + 1}}
+          incProgress(0.5)
+        }
       }
-    }
+    })
   })
   output$eb_family_ui <- renderUI({
     selectInput("family", "Choose a family:",
@@ -150,13 +160,20 @@ server <- function(input, output, session) {
     replaceData(proxy, exposom$normal_false, resetPaging = FALSE)
   })
   observeEvent(input$normalize_values, {
-    # IMPLEMENTAR UN IF QUE SE QUEJE SI NO SE HA INTRODUCIDO UN METODO CORRECTO
-    # IMPLEMENTAR UN "none" PARA NO NORMALIZAR
-    for (i in 1:nrow(exposom$normal_false)) {
-      expr <- paste0("trans(exposom$exp, fun = ", exposom$normal_false[i, 2],
-                     ", select = ", "'", exposom$normal_false[i, 1], "')")
-      exposom$exp <- eval(str2lang(expr))
-    }
+    withProgress(message = 'Performing LOD imputation', value = 0, {
+      # IMPLEMENTAR UN "none" PARA NO NORMALIZAR
+      if (all(exposom$normal_false[,2] == "log" | exposom$normal_false[,2] == "^1/3" | exposom$normal_false[,2] == "sqrt")) {
+        for (i in 1:nrow(exposom$normal_false)) {
+          expr <- paste0("trans(exposom$exp, fun = ", exposom$normal_false[i, 2],
+                         ", select = ", "'", exposom$normal_false[i, 1], "')")
+          exposom$exp <- eval(str2lang(expr))
+          incProgress(i/nrow(exposom$normal_false))
+        }
+      }
+      else {
+        shinyalert("Oops!", "An invalid normalizing method was introduced.", type = "error")
+      }
+    })
   })
   output$exp_normality_graph <- renderPlot({
     exp_index = input$exp_normality_rows_selected
