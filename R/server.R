@@ -277,11 +277,10 @@ server <- function(input, output, session) {
       }
       
       incProgress(0.5)
-      
       imp <- mice(dta[ , -52], pred = quickpred(dta[ , -52], mincor = 0.2, 
                                                 minpuc = 0.4), seed = 38788, m = 5, maxit = 10, printFlag = FALSE)
       
-      incProgress(0.8)
+      incProgress(0.7)
       
       for(set in 1:5) {
         im <- mice::complete(imp, action = set)
@@ -293,9 +292,12 @@ server <- function(input, output, session) {
       rownames(me) <- 1:nrow(me)
       dim(me)
       
-      ex_imp <- loadImputed(data = me, description = dd, 
+      exposom$exp <- loadImputed(data = me, description = dd, 
                             description.famCol = "Family", 
                             description.expCol = "Exposure")
+      exposom$exp_std <- standardize(exposom$exp, method = "normal")
+      exposom$exp_pca <- pca(exposom$exp_std)
+      exposom$nm <- normalityTest(exposom$exp)
     })
   })
 }
