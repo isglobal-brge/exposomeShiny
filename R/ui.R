@@ -65,15 +65,15 @@ body <- dashboardBody(
                        uiOutput("lod_help", align = "center"),
                        uiOutput("lod_imputation_type", align = "center"),
                        uiOutput("lod_substitution", align = "center")
-                     ),
-            ),
+                     )
+            )
     ),
     
     tabItem(tabName = "missing_data",
             tabPanel('Missing data',
                      plotOutput("missPlot"),
                      actionButton("impute_missings", "Impute missing values")
-            ),
+            )
     ),
     tabItem(tabName = "check_normality",
             tabPanel('Check Normality',
@@ -85,7 +85,7 @@ body <- dashboardBody(
                      actionButton("normal_false_table", "Show false"),
                      bsModal("normal_false", "", "normal_false_table", size = "large",
                              actionButton("normalize_values", "Normalize"), DTOutput("exp_normality_false"))
-            ),
+            )
     ),
     tabItem(tabName = "exposures_description",
             tabPanel('Exposures Description',
@@ -93,7 +93,7 @@ body <- dashboardBody(
                      uiOutput("eb_group1_ui"),
                      uiOutput("eb_group2_ui"),
                      plotOutput("exp_behaviour")
-            ),
+            )
     ),
     tabItem(tabName = "pca_visualization",
             tabPanel('PCA Visualization',
@@ -101,7 +101,7 @@ body <- dashboardBody(
                                  list("all", "samples", "exposures"), selected = "all"),
                      uiOutput("pca_group1_ui"),
                      plotOutput("exp_pca")
-            ),
+            )
     ),
     tabItem(tabName = "pca_association_with_exposures",
             tabPanel('PCA association with exposures',
@@ -110,17 +110,17 @@ body <- dashboardBody(
                                       "Phenotypes to the principal components"),
                                  selected = "Exposures to the principal components"),
                      plotOutput("exp_association", height = "600px")
-            ),
+            )
     ),
     tabItem(tabName = "exposure_correlation",
             tabPanel('Exposure Correlation',
                      plotOutput("exp_correlation")
-            ),
+            )
     ),
     tabItem(tabName = "cluster_exposures",
             tabPanel('Cluster Exposures',
                      plotOutput("ind_clustering", width = "100%")
-            ),
+            )
     ),
     tabItem(tabName = "exwas",
             tabPanel('ExWAS',
@@ -135,12 +135,12 @@ body <- dashboardBody(
                      actionButton("exwas_plot", "Load selected data"),
                      bsModal("exwas", "", "exwas_plot", size = "large",
                              plotOutput("exwas_as"))
-            ),
+            )
     ),
     tabItem(tabName = "m_exwas",
             tabPanel('Multivariate ExWAS (DSA and Elastic Net)',
                      plotOutput("mea")
-            ),
+            )
     )
   )
 )
