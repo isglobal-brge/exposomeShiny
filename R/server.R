@@ -51,6 +51,7 @@ server <- function(input, output, session) {
     description_values <- read.csv(files$description)
     exposom$lod_candidates <- unique(as.list(as.character(description_values[which(exposom$exposures_values == -1,
                                                                                    arr.ind = TRUE)[,2] - 1,2])))
+    
     exposom$lod_candidates_index <- which(exposom$exposures_values == -1, arr.ind = TRUE)
     if (length(exposom$lod_candidates) != 0) {
       output$lod_help <- renderUI({
@@ -58,12 +59,13 @@ server <- function(input, output, session) {
       })
       exposom$lod_candidates <- data.frame(matrix(unlist(exposom$lod_candidates)), seq(1,length(exposom$lod_candidates)))
       colnames(exposom$lod_candidates) <- c("Exposure","LOD")
+      transform(exposom$lod_candidates, LOD = as.numeric(LOD))
       output$dl_lodtable_ui <- renderUI({
         DTOutput("lod_data_entry_table", width = "60%")
     })
       output$lod_imputation_type <- renderUI({
         selectInput("lod_imputation_type_input", "Choose imputation method: ",
-                    list("LOD/sqrt(2)", "rtrunc"))
+                    list("LOD/sqrt(2)", "Random imputation"))
       })
       output$lod_substitution <- renderUI({
         actionButton("lod_substitution_input", "Perform LOD imputation with the values provided")
@@ -71,7 +73,14 @@ server <- function(input, output, session) {
     }
   })
   observeEvent(input$lod_help_button, {
-    shinyalert("LOD imputation info", "to_complete", type = "info")
+    shinyalert("LOD imputation info", "
+              To introduce the desired values of LOD, double click on the value column of the desired exposure.
+              
+              Two methods to impute the LOD missings:
+              1) Based on assigning LOD divided by square root [1]
+              2) Missing values are randomlyassigned using a truncated lognormal distribution
+               [1]: Richardson DB, Ciampi A. Effects of exposure measurement error when an exposure variable is constrained by a lower limit.
+", type = "info")
   })
   output$lod_data_entry_table <- renderDT(
     exposom$lod_candidates, selection = 'none', 
@@ -83,13 +92,14 @@ server <- function(input, output, session) {
     i = info$row
     j = info$col
     v = info$value
-    exposom$lod_candidates[i, j] <<- DT::coerceValue(v, exposom$lod_candidates[i, j])
+    exposom$lod_candidates[i, j] <<- DT::coerceValue(v, as.numeric(exposom$lod_candidates[i, j]))
     replaceData(proxy, exposom$lod_candidates, resetPaging = FALSE)
   })
   observeEvent(input$lod_substitution_input, {
     withProgress(message = 'Performing LOD imputation', value = 0, {
       col_cont <- 1
       exposom$lod_candidates <- as.data.table(exposom$lod_candidates)
+      #exposom$lod_candidates[, LOD := as.numeric(LOD)]
       if (input$lod_imputation_type_input == "LOD/sqrt(2)") {
         exposom$lod_candidates[,LOD := LOD/sqrt(2)]
       }
@@ -106,6 +116,9 @@ server <- function(input, output, session) {
           col <- exposom$lod_candidates_index[i,2]
           val <- rtrunc(sum(exposom$lod_candidates_index[,2] == col), 
                         spec="lnorm", a=0, b=as.numeric(exposom$lod_candidates[col_cont, 2]))
+          exposom$lod_candidates[,new := val[1]]
+          exposom$lod_candidates[,LOD := new]
+          exposom$lod_candidates[,new := NULL]
           exposom$exposures_values[exposom$lod_candidates_index[i,1], 
                            exposom$lod_candidates_index[i,2] := val[1]]
           if (i + 1 <= nrow(exposom$lod_candidates_index)) {

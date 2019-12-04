@@ -15,23 +15,23 @@ sidebar <- dashboardSidebar(
   sidebarMenu(
     menuItem("Data entry", tabName = "data_entry", icon = icon("dashboard")),
     menuItem("Missing data", icon = icon("th"), tabName = "missing_data",
-             badgeLabel = "new", badgeColor = "green"),
+               badgeColor = "green"),
     menuItem("Check normality", icon = icon("th"), tabName = "check_normality",
-             badgeLabel = "new", badgeColor = "green"),
+               badgeColor = "green"),
     menuItem("Exposures Description", icon = icon("th"), tabName = "exposures_description",
-             badgeLabel = "new", badgeColor = "green"),
+               badgeColor = "green"),
     menuItem("PCA Visualization", icon = icon("th"), tabName = "pca_visualization",
-             badgeLabel = "new", badgeColor = "green"),
+               badgeColor = "green"),
     menuItem("PCA association with exposures", icon = icon("th"), tabName = "pca_association_with_exposures",
-             badgeLabel = "new", badgeColor = "green"),
+               badgeColor = "green"),
     menuItem("Exposure Correlation", icon = icon("th"), tabName = "exposure_correlation",
-             badgeLabel = "new", badgeColor = "green"),
+               badgeColor = "green"),
     menuItem("Cluster Exposures", icon = icon("th"), tabName = "cluster_exposures",
-             badgeLabel = "new", badgeColor = "green"),
+               badgeColor = "green"),
     menuItem("ExWAS", icon = icon("th"), tabName = "exwas",
-             badgeLabel = "new", badgeColor = "green"),
+               badgeColor = "green"),
     menuItem("Multivariate ExWAS (DSA and Elastic Net)", icon = icon("th"), tabName = "m_exwas",
-             badgeLabel = "new", badgeColor = "green")
+               badgeColor = "green")
   )
 )
 
@@ -41,6 +41,12 @@ body <- dashboardBody(
             tabPanel('Data entry',
                      fluidRow(
                        column(6,
+                              fileInput("exposures", "Choose exposures CSV File",
+                                        accept = c(
+                                          "text/csv",
+                                          "text/comma-separated-values,text/plain",
+                                          ".csv")
+                              ),
                               fileInput("description", "Choose description CSV File",
                                         accept = c(
                                           "text/csv",
@@ -53,13 +59,7 @@ body <- dashboardBody(
                                           "text/comma-separated-values,text/plain",
                                           ".csv")
                               ),
-                              fileInput("exposures", "Choose exposures CSV File",
-                                        accept = c(
-                                          "text/csv",
-                                          "text/comma-separated-values,text/plain",
-                                          ".csv")
-                              ),
-                              actionButton("data_load", "Run model")
+                              actionButton("data_load", "Load data")
                        ),
                        uiOutput("dl_lodtable_ui", align = "center"),
                        uiOutput("lod_help", align = "center"),
@@ -72,7 +72,7 @@ body <- dashboardBody(
     tabItem(tabName = "missing_data",
             tabPanel('Missing data',
                      plotOutput("missPlot"),
-                     actionButton("impute_missings", "Impute missing values")
+                     actionButton("impute_missings", "Impute missing values using mice")
             )
     ),
     tabItem(tabName = "check_normality",
