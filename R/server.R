@@ -47,6 +47,8 @@ server <- function(input, output, session) {
     exposom$normal_false <- as.data.frame(exposom$normal_false)
     })
     exposom_lists$phenotypes_list <- as.list(phenotypeNames(exposom$exp))
+    exposom_lists$phenotypes_list <- append(exposom_lists$phenotypes_list,
+                                             'None', after = 0)
     exposom_lists$exposure_names <- as.list(familyNames(exposom$exp))
     exposom$exposures_values <- as.data.table(read.csv(files$exposures))
     description_values <- read.csv(files$description)
@@ -147,7 +149,7 @@ server <- function(input, output, session) {
     selectInput("group", "Choose a grouping factor:", exposom_lists$phenotypes_list)
   })
   output$eb_group2_ui <- renderUI({
-    selectInput("group2", "Choose a grouping factor:", exposom_lists$phenotypes_list)
+    selectInput("group2", "Choose a second grouping factor:", exposom_lists$phenotypes_list)
   })
   output$pca_group1_ui <- renderUI({
     selectInput("group_pca", "Choose a grouping factor (only for samples set) :", exposom_lists$phenotypes_list)
@@ -332,11 +334,16 @@ server <- function(input, output, session) {
       exposom$exp_std <- standardize(exposom$exp, method = "normal")
       exposom$exp_pca <- pca(exposom$exp_std)
       exposom$nm <- normalityTest(exposom$exp)
-      browser()
+      
+      #browser()
       
       output$download_imputed_set <- renderUI({
         downloadButton('download_impset', label = "Download first imputed exposures set")
       })
+      output$download_imputed_set_rdata <- renderUI({
+        downloadButton('download_impset_rdata', label = "Download all imputed exposures sets as .Rdata")
+      })
+      
     })
   })
   #ARRREGLAR EL ARXIU QUE SURTI LA PRIMERA COLUMNA DELS ID'S
@@ -346,6 +353,15 @@ server <- function(input, output, session) {
     },
     content = function(con) {
       write.csv(rexposome::expos(exposom$exp), con, row.names = FALSE)
+    }
+  )
+  # MILLORAR LA IMPLEMENTACIO PER PODER TRIAR ON ES GUARDE!
+  output$download_impset_rdata <- downloadHandler(
+    filename = function() {
+      paste0('exposures_imputed','.Rdata')
+    },
+    content = function(con) {
+      saveRDS(exposom$exp, file = "exposures_imputed.Rdata")
     }
   )
 }

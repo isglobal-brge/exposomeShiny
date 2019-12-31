@@ -75,6 +75,7 @@ body <- dashboardBody(
                      plotOutput("missPlot", height = "1000px"),
                      actionButton("impute_missings", "Impute missing values using mice"),
                      uiOutput("download_imputed_set")
+                     #uiOutput("download_imputed_set_rdata") #ACABAR IMPLEMENTACIO CORRECTAMENT AL server.R
             )
     ),
     tabItem(tabName = "check_normality",
