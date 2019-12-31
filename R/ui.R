@@ -64,15 +64,17 @@ body <- dashboardBody(
                        uiOutput("dl_lodtable_ui", align = "center"),
                        uiOutput("lod_help", align = "center"),
                        uiOutput("lod_imputation_type", align = "center"),
-                       uiOutput("lod_substitution", align = "center")
+                       uiOutput("lod_substitution", align = "center"),
+                       uiOutput("download_lod_data", align = "center")
                      )
             )
     ),
     
     tabItem(tabName = "missing_data",
             tabPanel('Missing data',
-                     plotOutput("missPlot"),
-                     actionButton("impute_missings", "Impute missing values using mice")
+                     plotOutput("missPlot", height = "1000px"),
+                     actionButton("impute_missings", "Impute missing values using mice"),
+                     uiOutput("download_imputed_set")
             )
     ),
     tabItem(tabName = "check_normality",
@@ -84,7 +86,9 @@ body <- dashboardBody(
                              plotOutput("exp_normality_graph")),
                      actionButton("normal_false_table", "Show false"),
                      bsModal("normal_false", "", "normal_false_table", size = "large",
-                             actionButton("normalize_values", "Normalize"), DTOutput("exp_normality_false"))
+                              DTOutput("exp_normality_false"), 
+                             actionButton("normalize_values", "Normalize"),
+                             actionButton("help_normalize_values", "Help"))
             )
     ),
     tabItem(tabName = "exposures_description",

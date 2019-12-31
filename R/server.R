@@ -39,6 +39,7 @@ server <- function(input, output, session) {
     exposom$exp_pca <- pca(exposom$exp_std)
     incProgress(0.7)
     exposom$nm <- normalityTest(exposom$exp)
+    exposom$nm[,3] <- as.numeric(formatC(exposom$nm[,3], format = "e", digits = 2))
     exposom$normal_false <- as.data.table(exposom$nm)[normality == FALSE]
     exposom$normal_false[, normality := NULL]
     exposom$normal_false[, p.value := NULL]
@@ -72,6 +73,14 @@ server <- function(input, output, session) {
       })
     }
   })
+  output$download_lod <- downloadHandler(
+      filename = function() {
+        paste0('exposures_lod_imputed','.csv')
+      },
+      content = function(con) {
+        write.csv(exposom$exposures_values, con, row.names = FALSE)
+      }
+    )
   observeEvent(input$lod_help_button, {
     shinyalert("LOD imputation info", "
               To introduce the desired values of LOD, double click on the value column of the desired exposure.
@@ -99,7 +108,6 @@ server <- function(input, output, session) {
     withProgress(message = 'Performing LOD imputation', value = 0, {
       col_cont <- 1
       exposom$lod_candidates <- as.data.table(exposom$lod_candidates)
-      #exposom$lod_candidates[, LOD := as.numeric(LOD)]
       if (input$lod_imputation_type_input == "LOD/sqrt(2)") {
         exposom$lod_candidates[,LOD := LOD/sqrt(2)]
       }
@@ -126,6 +134,9 @@ server <- function(input, output, session) {
           incProgress(0.5)
         }
       }
+    })
+    output$download_lod_data <- renderUI({
+      downloadButton('download_lod', label = "Download LOD imputed exposures.csv")
     })
   })
   output$eb_family_ui <- renderUI({
@@ -154,9 +165,16 @@ server <- function(input, output, session) {
   )
   output$exp_normality <- renderDT(exposom$nm, class = 'cell-border stripe',
                                    options=list(columnDefs = list(list(visible=FALSE,
-                                                                       targets=c(0)))),
+                                                                       targets=c(0))),
+                                                digits = 2),
                                    colnames = c("Exposure", "Normality", "P-Value"),
                                    selection = "single")
+  observeEvent(input$help_normalize_values, {
+    shinyalert("Normalize info", "
+              To introduce the desired normalizing method, double click on the normalization method column and introduce the desired method.
+              The supported methods are 'log', '^1/3' and 'sqrt'.
+              If no normalization method is desired input 'none'.", type = "info")
+  })
   output$exp_normality_false <- renderDT(exposom$normal_false, class = 'cell-border stripe',
                                    colnames = c("Exposure", "Normalization method"),
                                    selection = "none", server = F, 
@@ -174,14 +192,16 @@ server <- function(input, output, session) {
   })
   observeEvent(input$normalize_values, {
     withProgress(message = 'Performing LOD imputation', value = 0, {
-      # IMPLEMENTAR UN "none" PARA NO NORMALIZAR
-      if (all(exposom$normal_false[,2] == "log" | exposom$normal_false[,2] == "^1/3" | exposom$normal_false[,2] == "sqrt")) {
+      if (all(exposom$normal_false[,2] == "log" | exposom$normal_false[,2] == "^1/3" | exposom$normal_false[,2] == "sqrt" | exposom$normal_false[,2] == "none")) {
         for (i in 1:nrow(exposom$normal_false)) {
+          if (exposom$normal_false[i,2] == "none") {next}
           expr <- paste0("trans(exposom$exp, fun = ", exposom$normal_false[i, 2],
                          ", select = ", "'", exposom$normal_false[i, 1], "')")
           exposom$exp <- eval(str2lang(expr))
           incProgress(i/nrow(exposom$normal_false))
         }
+        exposom$nm <- normalityTest(exposom$exp)
+        exposom$nm[,3] <- as.numeric(formatC(exposom$nm[,3], format = "e", digits = 2))
       }
       else {
         shinyalert("Oops!", "An invalid normalizing method was introduced.", type = "error")
@@ -271,29 +291,31 @@ server <- function(input, output, session) {
       ee <- read.csv(files$exposures, header=TRUE)
       pp <- read.csv(files$phenotypes, header=TRUE)
       
-      dd <- dd[-which(dd$Family %in% c("Phthalates", "PBDEs", "PFOAs", "Metals")), ]
-      ee <- ee[ , c("idnum", dd$Exposure)]
-      
       rownames(ee) <- ee$idnum
       rownames(pp) <- pp$idnum
       
       incProgress(0.2)
       
       dta <- cbind(ee[ , -1], pp[ , -1])
-      dta[1:3, c(1:3, 52:56)]
       
-      for(ii in c(1:13, 18:47, 55:56)) {
-        dta[, ii] <- as.numeric(dta[ , ii])
+      for (ii in 1:length(dta)) {
+        if (length(levels(as.factor(dta[,ii]))) < 6) {
+          dta[ , ii] <- as.factor(dta[ , ii])
+        }
+        else {
+          dta[, ii] <- as.numeric(dta[ , ii])
+        }
       }
-      for(ii in c(14:17, 48:54)) {
-        dta[ , ii] <- as.factor(dta[ , ii])
-      }
+      
+      bd_column_inde <- grep("birthdate", colnames(dta))
       
       incProgress(0.5)
-      imp <- mice(dta[ , -52], pred = quickpred(dta[ , -52], mincor = 0.2, 
-                                                minpuc = 0.4), seed = 38788, m = 5, maxit = 10, printFlag = FALSE)
+      imp <- mice(dta[ , -bd_column_inde], pred = quickpred(dta[ , -bd_column_inde],
+                mincor = 0.2, minpuc = 0.4), seed = 38788, m = 5, maxit = 10, printFlag = FALSE)
       
       incProgress(0.7)
+      
+      me <- NULL
       
       for(set in 1:5) {
         im <- mice::complete(imp, action = set)
@@ -301,21 +323,32 @@ server <- function(input, output, session) {
         im[ , ".id"] <- rownames(im)
         me <- rbind(me, im)
       }
-      me <- me[ , c(".imp", ".id", colnames(me)[-(97:98)])]
-      rownames(me) <- 1:nrow(me)
-      dim(me)
       
-      exposom$exp <- loadImputed(data = me, description = dd, 
+      exposom$exp_imp <- loadImputed(data = me, description = dd, 
                             description.famCol = "Family", 
                             description.expCol = "Exposure")
+      ex_1 <- toES(exposom$exp_imp, rid = 1)
+      exposom$exp <- ex_1
       exposom$exp_std <- standardize(exposom$exp, method = "normal")
       exposom$exp_pca <- pca(exposom$exp_std)
       exposom$nm <- normalityTest(exposom$exp)
+      browser()
+      
+      output$download_imputed_set <- renderUI({
+        downloadButton('download_impset', label = "Download first imputed exposures set")
+      })
     })
   })
+  #ARRREGLAR EL ARXIU QUE SURTI LA PRIMERA COLUMNA DELS ID'S
+  output$download_impset <- downloadHandler(
+    filename = function() {
+      paste0('exposures_imputed','.csv')
+    },
+    content = function(con) {
+      write.csv(rexposome::expos(exposom$exp), con, row.names = FALSE)
+    }
+  )
 }
-
-
 
 
 
