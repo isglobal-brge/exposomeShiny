@@ -72,10 +72,10 @@ body <- dashboardBody(
     
     tabItem(tabName = "missing_data",
             tabPanel('Missing data',
-                     plotOutput("missPlot", height = "1000px"),
                      downloadButton("missPlot_down", "Download plot"),
                      actionButton("impute_missings", "Impute missing values using mice"),
-                     uiOutput("download_imputed_set")
+                     uiOutput("download_imputed_set"),
+                     plotOutput("missPlot", height = "1000px")
                      #uiOutput("download_imputed_set_rdata") #ACABAR IMPLEMENTACIO CORRECTAMENT AL server.R
             )
     ),
@@ -107,7 +107,7 @@ body <- dashboardBody(
                      selectInput("pca_set", "Choose a set:",
                                  list("all", "samples", "exposures"), selected = "all"),
                      uiOutput("pca_group1_ui"),
-                     plotOutput("exp_pca"),
+                     plotOutput("exp_pca", height = "700px"),
                      downloadButton("exp_pca_down", "Download plot")
             )
     ),
@@ -149,14 +149,19 @@ body <- dashboardBody(
                      uiOutput("exwas_covariables_ui"),
                      actionButton("exwas_plot", "Run model"),
                      bsModal("exwas", "", "exwas_plot", size = "large",
-                             plotOutput("exwas_as")),
-                     downloadButton("exwas_as_down", "Download plot")
+                             plotOutput("exwas_as", height = "700px"),
+                             downloadButton("exwas_as_down", "Download plot"))
             )
     ),
     tabItem(tabName = "m_exwas",
             tabPanel('Multivariate ExWAS',
-                     plotOutput("mea"),
-                     downloadButton("mea_down", "Download plot")
+                     uiOutput("mexwas_outcome_ui"),
+                     selectInput("mexwas_output_family", "Choose the output family:",
+                                 list("binomial","gaussian","poisson")),
+                     actionButton("mexwas_plot", "Run model"),
+                     bsModal("mexwas", "", "mexwas_plot", size = "large",
+                             plotOutput("mea", height = "700px"),
+                             downloadButton("mea_down", "Download plot"))
             )
     )
   )

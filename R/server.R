@@ -1,24 +1,7 @@
 server <- function(input, output, session) {
-  DEVELOPER_MODE <- 1 # 0: developer mode activated
-  if (DEVELOPER_MODE == 0) {
-    path <- file.path(path.package("rexposome"), "extdata")
-    description <- file.path(path, "description.csv")
-    phenotype <- file.path(path, "phenotypes.csv")
-    exposures <- file.path(path, "exposures.csv")
-    #exposures <- file.path("/Users/Escriba/OneDrive/Estudis/UAB/1A/TFM/git_repo/exposomeShiny/data/exposures_lod_test.csv")
-    exposom <- reactiveValues(exp = NULL, exp_std = NULL, exp_pca = NULL, nm = NULL, lod_candidates = NULL, lod_candidates_index = NULL, normal_false = NULL)
-    exposom$exp <- readExposome(exposures = exposures, description = description,
-                        phenotype = phenotype, 
-                        exposures.samCol = "idnum", description.expCol = "Exposure", 
-                        description.famCol = "Family", phenotype.samCol = "idnum")
-    exposom$exp_std <- standardize(exposom$exp, method = "normal")
-    exposom$exp_pca <- pca(exposom$exp_std)
-    exposom$nm <- normalityTest(exposom$exp)
-  }
-  
   exposom <- reactiveValues(exp = NULL, exp_std = NULL, exp_pca = NULL, nm = NULL, lod_candidates = NULL, lod_candidates_index = NULL, normal_false = NULL, exposures_values = NULL)
   files <- reactiveValues(description = NULL, phenotypes = NULL, exposures = NULL)
-  exposom_lists <- reactiveValues(phenotypes_list = NULL, exposure_names = NULL)
+  exposom_lists <- reactiveValues(phenotypes_list = NULL, phenotypes_list_og = NULL, exposure_names = NULL)
   
   observeEvent(input$data_load, {
     description_file <- input$description
@@ -46,8 +29,8 @@ server <- function(input, output, session) {
     exposom$normal_false[, Method := "log"]
     exposom$normal_false <- as.data.frame(exposom$normal_false)
     })
-    exposom_lists$phenotypes_list <- as.list(phenotypeNames(exposom$exp))
-    exposom_lists$phenotypes_list <- append(exposom_lists$phenotypes_list,
+    exposom_lists$phenotypes_list_og <- as.list(phenotypeNames(exposom$exp))
+    exposom_lists$phenotypes_list <- append(exposom_lists$phenotypes_list_og,
                                              'None', after = 0)
     exposom_lists$exposure_names <- as.list(familyNames(exposom$exp))
     exposom$exposures_values <- as.data.table(read.csv(files$exposures))
@@ -156,7 +139,11 @@ server <- function(input, output, session) {
   })
   output$exwas_outcome_ui <- renderUI({
     selectInput("exwas_outcome", "Choose the outcome variale:",
-                exposom_lists$phenotypes_list)
+                exposom_lists$phenotypes_list_og)
+  })
+  output$mexwas_outcome_ui <- renderUI({
+    selectInput("mexwas_outcome", "Choose the outcome variale:",
+                exposom_lists$phenotypes_list_og)
   })
   output$exwas_covariables_ui <- renderUI({
     selectInput("exwas_covariables", "Choose the covariable(s):",
@@ -290,15 +277,15 @@ server <- function(input, output, session) {
       else {plotEffect(fl)}
   })
   output$mea <- renderPlot({
-    #browser()
-    bl_mew <- mexwas(exposom$exp_std, phenotype = "blood_pre", family = "gaussian")
-    we_mew <- mexwas(exposom$exp_std, phenotype = "wheezing", family = "binomial")
-    plotExwas(bl_mew, we_mew) +
+    outcome <- input$mexwas_outcome
+    family_out <- input$mexwas_output_family
+    fl_m <- mexwas(exposom$exp, phenotype = outcome, family = family_out)
+    plotExwas(fl_m) +
       ylab("") +
       ggtitle("Exposome Association Study - Multivariate Approach")
   })
   observeEvent(input$impute_missings, {
-    withProgress(message = 'Imputating the missing values', value = 0, {
+    withProgress(message = 'Imputing the missing values', value = 0, {
       dd <- read.csv(files$description, header=TRUE, stringsAsFactors=FALSE)
       ee <- read.csv(files$exposures, header=TRUE)
       pp <- read.csv(files$phenotypes, header=TRUE)
@@ -344,8 +331,6 @@ server <- function(input, output, session) {
       exposom$exp_std <- standardize(exposom$exp, method = "normal")
       exposom$exp_pca <- pca(exposom$exp_std)
       exposom$nm <- normalityTest(exposom$exp)
-      
-      #browser()
       
       output$download_imputed_set <- renderUI({
         downloadButton('download_impset', label = "Download first imputed exposures set")
