@@ -1,7 +1,10 @@
 server <- function(input, output, session) {
-  exposom <- reactiveValues(exp = NULL, exp_std = NULL, exp_pca = NULL, nm = NULL, lod_candidates = NULL, lod_candidates_index = NULL, normal_false = NULL, exposures_values = NULL)
+  exposom <- reactiveValues(exp = NULL, exp_std = NULL, exp_pca = NULL, nm = NULL, 
+                            lod_candidates = NULL, lod_candidates_index = NULL, 
+                            normal_false = NULL, exposures_values = NULL, exwas_eff = NULL)
   files <- reactiveValues(description = NULL, phenotypes = NULL, exposures = NULL)
-  exposom_lists <- reactiveValues(phenotypes_list = NULL, phenotypes_list_og = NULL, exposure_names = NULL)
+  exposom_lists <- reactiveValues(phenotypes_list = NULL, phenotypes_list_og = NULL, 
+                                  exposure_names = NULL)
   
   observeEvent(input$data_load, {
     description_file <- input$description
@@ -269,12 +272,16 @@ server <- function(input, output, session) {
       formula_plot <- as.formula(formula_plot)
       fl <- exwas(exposom$exp, formula = formula_plot,
                      family = family_out)
+      exposom$exwas_eff <- 0.05/fl@effective
       clr <- rainbow(length(familyNames(exposom$exp)))
       names(clr) <- familyNames(exposom$exp)
       if (input$exwas_choice == "Manhattan-like plot") {
         plotExwas(fl, color = clr) + 
           ggtitle("Exposome Association Study - Univariate Approach")}
       else {plotEffect(fl)}
+  })
+  output$exwas_effect <- renderText({
+    paste("Number of effective tests: ", round(exposom$exwas_eff, digits=1))
   })
   output$mea <- renderPlot({
     outcome <- input$mexwas_outcome

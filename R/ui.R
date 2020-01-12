@@ -149,6 +149,7 @@ body <- dashboardBody(
                      uiOutput("exwas_covariables_ui"),
                      actionButton("exwas_plot", "Run model"),
                      bsModal("exwas", "", "exwas_plot", size = "large",
+                             textOutput("exwas_effect"),
                              plotOutput("exwas_as", height = "700px"),
                              downloadButton("exwas_as_down", "Download plot"))
             )
