@@ -240,8 +240,16 @@ server <- function(input, output, session) {
     else {plotPCA(exposom$exp_pca, set = set_pca)}
   })
   output$exp_correlation <- renderPlot({
+    type <- input$exp_corr_choice
     exp_cr <- correlation(exposom$exp, use = "pairwise.complete.obs", method.cor = "pearson")
-    plotCorrelation(exp_cr, type = "matrix")
+    if (type == "Matrix") {
+      plotCorrelation(exp_cr, type = "matrix")
+    }
+    else {
+      plotCorrelation(exp_cr, type = "circos")
+    }
+    
+    
   })
   output$ind_clustering <- renderPlot({
     hclust_data <- function(data, ...) {
@@ -282,10 +290,12 @@ server <- function(input, output, session) {
       else {plotEffect(fl)}
   })
   output$mea <- renderPlot({
+    #browser()
     bl_mew <- mexwas(exposom$exp_std, phenotype = "blood_pre", family = "gaussian")
     we_mew <- mexwas(exposom$exp_std, phenotype = "wheezing", family = "binomial")
-    plotExwas(bl_mew, we_mew) + ylab("") 
-    + ggtitle("Exposome Association Study - Multivariate Approach")
+    plotExwas(bl_mew, we_mew) +
+      ylab("") +
+      ggtitle("Exposome Association Study - Multivariate Approach")
   })
   observeEvent(input$impute_missings, {
     withProgress(message = 'Imputating the missing values', value = 0, {
@@ -362,6 +372,70 @@ server <- function(input, output, session) {
     },
     content = function(con) {
       saveRDS(exposom$exp, file = "exposures_imputed.Rdata")
+    }
+  )
+  output$missPlot_down <- downloadHandler(
+    filename = function(){
+      paste('missing_data', '.png', sep = '')
+    },
+    content = function(file){
+      ggsave(file, plot = last_plot(), device = 'png')
+    }
+  )
+  output$exp_behaviour_down <- downloadHandler(
+    filename = function(){
+      paste('exp_behaviour', '.png', sep = '')
+    },
+    content = function(file){
+      ggsave(file, plot = last_plot(), device = 'png')
+    }
+  )
+  output$exp_pca_down <- downloadHandler(
+    filename = function(){
+      paste('exp_pca', '.png', sep = '')
+    },
+    content = function(file){
+      ggsave(file, plot = last_plot(), device = 'png')
+    }
+  )
+  output$exp_association_down <- downloadHandler(
+    filename = function(){
+      paste('exp_association', '.png', sep = '')
+    },
+    content = function(file){
+      ggsave(file, plot = last_plot(), device = 'png')
+    }
+  )
+  output$exp_correlation_down <- downloadHandler(
+    filename = function(){
+      paste('exp_correlation', '.png', sep = '')
+    },
+    content = function(file){
+      ggsave(file, plot = last_plot(), device = 'png')
+    }
+  )
+  output$ind_clustering_down <- downloadHandler(
+    filename = function(){
+      paste('ind_clustering', '.png', sep = '')
+    },
+    content = function(file){
+      ggsave(file, plot = last_plot(), device = 'png')
+    }
+  )
+  output$exwas_as_down <- downloadHandler(
+    filename = function(){
+      paste('exwas_as', '.png', sep = '')
+    },
+    content = function(file){
+      ggsave(file, plot = last_plot(), device = 'png')
+    }
+  )
+  output$mea_down <- downloadHandler(
+    filename = function(){
+      paste('mea', '.png', sep = '')
+    },
+    content = function(file){
+      ggsave(file, plot = last_plot(), device = 'png')
     }
   )
 }
