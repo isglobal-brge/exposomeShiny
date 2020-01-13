@@ -260,18 +260,22 @@ server <- function(input, output, session) {
     }
   })
   output$exwas_as <- renderPlot({
-      outcome <- input$exwas_outcome
-      cov <- input$exwas_covariables
-      family_out <- input$exwas_output_family
-      formula_plot <- paste(outcome, "~ 1")
-      if (length(cov) > 0) {
-        for (i in 1:length(cov)) {
-          formula_plot <- paste(formula_plot, "+", cov[i])
-        }
+    outcome <- input$exwas_outcome
+    cov <- input$exwas_covariables
+    family_out <- input$exwas_output_family
+    formula_plot <- paste(outcome, "~ 1")
+    if (length(cov) > 0) {
+      for (i in 1:length(cov)) {
+        formula_plot <- paste(formula_plot, "+", cov[i])
       }
-      formula_plot <- as.formula(formula_plot)
-      fl <- exwas(exposom$exp, formula = formula_plot,
-                     family = family_out)
+    }
+    formula_plot <- as.formula(formula_plot)
+    fl <- exwas(exposom$exp, formula = formula_plot,
+                family = family_out)
+    if (dim(fl@comparison)[1] == 0) {
+      shinyalert("Oops!", "Select the proper distribution for that outcome", type = "warning")
+    }
+    else {
       exposom$exwas_eff <- 0.05/fl@effective
       clr <- rainbow(length(familyNames(exposom$exp)))
       names(clr) <- familyNames(exposom$exp)
@@ -279,17 +283,75 @@ server <- function(input, output, session) {
         plotExwas(fl, color = clr) + 
           ggtitle("Exposome Association Study - Univariate Approach")}
       else {plotEffect(fl)}
+    }
   })
   output$exwas_effect <- renderText({
     paste("Number of effective tests: ", round(exposom$exwas_eff, digits=1))
   })
   output$mea <- renderPlot({
-    outcome <- input$mexwas_outcome
-    family_out <- input$mexwas_output_family
-    fl_m <- mexwas(exposom$exp, phenotype = outcome, family = family_out)
-    plotExwas(fl_m) +
-      ylab("") +
-      ggtitle("Exposome Association Study - Multivariate Approach")
+    if (anyNA(expos(exposom$exp)) == TRUE) {
+      shinyalert("Info", "Performing separate imputation using mice to perform the MExWAS", 
+                 type = "info", timer = 5000, showConfirmButton = FALSE)
+      withProgress(message = 'Imputing the missing values', value = 0, {
+        dd <- read.csv(files$description, header=TRUE, stringsAsFactors=FALSE)
+        ee <- read.csv(files$exposures, header=TRUE)
+        pp <- read.csv(files$phenotypes, header=TRUE)
+        
+        rownames(ee) <- ee$idnum
+        rownames(pp) <- pp$idnum
+        
+        incProgress(0.2)
+        
+        dta <- cbind(ee[ , -1], pp[ , -1])
+        
+        for (ii in 1:length(dta)) {
+          if (length(levels(as.factor(dta[,ii]))) < 6) {
+            dta[ , ii] <- as.factor(dta[ , ii])
+          }
+          else {
+            dta[, ii] <- as.numeric(dta[ , ii])
+          }
+        }
+        
+        bd_column_inde <- grep("birthdate", colnames(dta))
+        
+        incProgress(0.5)
+        imp <- mice(dta[ , -bd_column_inde], pred = quickpred(dta[ , -bd_column_inde],
+                    mincor = 0.2, minpuc = 0.4), 
+                    seed = 38788, m = 5, maxit = 10, printFlag = FALSE)
+        
+        incProgress(0.7)
+        
+        me <- NULL
+        
+        for(set in 1:5) {
+          im <- mice::complete(imp, action = set)
+          im[ , ".imp"] <- set
+          im[ , ".id"] <- rownames(im)
+          me <- rbind(me, im)
+        }
+        
+        exp_imp <- loadImputed(data = me, description = dd, 
+                               description.famCol = "Family", 
+                               description.expCol = "Exposure")
+        
+        ex_1 <- toES(exp_imp, rid = 1)
+      })
+      outcome <- input$mexwas_outcome
+      family_out <- input$mexwas_output_family
+      fl_m <- mexwas(ex_1, phenotype = outcome, family = family_out)
+      plotExwas(fl_m) +
+        ylab("") +
+        ggtitle("Exposome Association Study - Multivariate Approach")
+    }
+    else {
+      outcome <- input$mexwas_outcome
+      family_out <- input$mexwas_output_family
+      fl_m <- mexwas(exposom$exp, phenotype = outcome, family = family_out)
+      plotExwas(fl_m) +
+        ylab("") +
+        ggtitle("Exposome Association Study - Multivariate Approach")
+    }
   })
   observeEvent(input$impute_missings, {
     withProgress(message = 'Imputing the missing values', value = 0, {
