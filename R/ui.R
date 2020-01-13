@@ -98,8 +98,8 @@ body <- dashboardBody(
                      uiOutput("eb_family_ui"),
                      uiOutput("eb_group1_ui"),
                      uiOutput("eb_group2_ui"),
-                     plotOutput("exp_behaviour"),
-                     downloadButton("exp_behaviour_down", "Download plot")
+                     downloadButton("exp_behaviour_down", "Download plot"),
+                     plotOutput("exp_behaviour")
             )
     ),
     tabItem(tabName = "pca_visualization",
@@ -107,8 +107,8 @@ body <- dashboardBody(
                      selectInput("pca_set", "Choose a set:",
                                  list("all", "samples", "exposures"), selected = "all"),
                      uiOutput("pca_group1_ui"),
-                     plotOutput("exp_pca", height = "700px"),
-                     downloadButton("exp_pca_down", "Download plot")
+                     downloadButton("exp_pca_down", "Download plot"),
+                     plotOutput("exp_pca", height = "700px")
             )
     ),
     tabItem(tabName = "pca_association_with_exposures",
@@ -117,18 +117,18 @@ body <- dashboardBody(
                                  list("Exposures to the principal components",
                                       "Phenotypes to the principal components"),
                                  selected = "Exposures to the principal components"),
-                     plotOutput("exp_association", height = "600px"),
-                     downloadButton("exp_association_down", "Download plot")
+                     downloadButton("exp_association_down", "Download plot"),
+                     plotOutput("exp_association", height = "600px")
             )
     ),
     tabItem(tabName = "exposure_correlation",
             tabPanel('Exposure Correlation',
                      selectInput("exp_corr_choice", "Choose plot type:",
                                  list("Matrix",
-                                      "Circles"),
+                                      "Circos plot"),
                                  selected = "Matrix"),
-                     plotOutput("exp_correlation", height = '1000px'),
-                     downloadButton("exp_correlation_down", "Download plot")
+                     downloadButton("exp_correlation_down", "Download plot"),
+                     plotOutput("exp_correlation", height = '1000px')
             )
     ),
     tabItem(tabName = "cluster_exposures",
@@ -161,8 +161,8 @@ body <- dashboardBody(
                                  list("binomial","gaussian","poisson")),
                      actionButton("mexwas_plot", "Run model"),
                      bsModal("mexwas", "", "mexwas_plot", size = "large",
-                             plotOutput("mea", height = "700px"),
-                             downloadButton("mea_down", "Download plot"))
+                             downloadButton("mea_down", "Download plot"),
+                             plotOutput("mea", height = "700px"))
             )
     )
   )

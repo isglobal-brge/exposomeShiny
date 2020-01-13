@@ -183,7 +183,7 @@ server <- function(input, output, session) {
     replaceData(proxy, exposom$normal_false, resetPaging = FALSE)
   })
   observeEvent(input$normalize_values, {
-    withProgress(message = 'Performing LOD imputation', value = 0, {
+    withProgress(message = 'Transforming data', value = 0, {
       if (all(exposom$normal_false[,2] == "log" | exposom$normal_false[,2] == "^1/3" | exposom$normal_false[,2] == "sqrt" | exposom$normal_false[,2] == "none")) {
         for (i in 1:nrow(exposom$normal_false)) {
           if (exposom$normal_false[i,2] == "none") {next}
@@ -263,9 +263,9 @@ server <- function(input, output, session) {
       outcome <- input$exwas_outcome
       cov <- input$exwas_covariables
       family_out <- input$exwas_output_family
-      formula_plot <- paste(outcome, "~", cov[1])
-      if (length(cov) > 1) {
-        for (i in 2:length(cov)) {
+      formula_plot <- paste(outcome, "~ 1")
+      if (length(cov) > 0) {
+        for (i in 1:length(cov)) {
           formula_plot <- paste(formula_plot, "+", cov[i])
         }
       }
