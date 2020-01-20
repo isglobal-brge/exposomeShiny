@@ -13,25 +13,27 @@ library(shinydashboard)
 sidebar <- dashboardSidebar(
   useShinyalert(),
   sidebarMenu(
-    menuItem("Data entry", tabName = "data_entry", icon = icon("dashboard")),
-    menuItem("Missing data", icon = icon("th"), tabName = "missing_data",
+    menuItem("Data entry", tabName = "data_entry", icon = icon("upload")),
+    menuItem("Missing data", icon = icon("star-half-alt"), tabName = "missing_data",
                badgeColor = "green"),
-    menuItem("Check normality", icon = icon("th"), tabName = "check_normality",
+    menuItem("Check normality", icon = icon("chart-area"), tabName = "check_normality",
                badgeColor = "green"),
-    menuItem("Exposures Description", icon = icon("th"), tabName = "exposures_description",
+    menuItem("Exposures Description", icon = icon("drafting-compass"), tabName = "exposures_description",
                badgeColor = "green"),
-    menuItem("PCA Visualization", icon = icon("th"), tabName = "pca_visualization",
+    menuItem("PCA Visualization", icon = icon("ruler-combined"), tabName = "pca_visualization",
                badgeColor = "green"),
-    menuItem("PCA association with exposures", icon = icon("th"), tabName = "pca_association_with_exposures",
+    menuItem("PCA association with exposures", icon = icon("signal"), tabName = "pca_association_with_exposures",
                badgeColor = "green"),
     menuItem("Exposure Correlation", icon = icon("th"), tabName = "exposure_correlation",
                badgeColor = "green"),
-    menuItem("Cluster Exposures", icon = icon("th"), tabName = "cluster_exposures",
+    menuItem("Cluster Exposures", icon = icon("chalkboard"), tabName = "cluster_exposures",
                badgeColor = "green"),
-    menuItem("ExWAS", icon = icon("th"), tabName = "exwas",
+    menuItem("ExWAS", icon = icon("braille"), tabName = "exwas",
                badgeColor = "green"),
-    menuItem("Multivariate ExWAS", icon = icon("th"), tabName = "m_exwas",
-               badgeColor = "green")
+    menuItem("Multivariate ExWAS", icon = icon("bars"), tabName = "m_exwas",
+               badgeColor = "green"),
+    menuItem("Omic Data", icon = icon("th"), 
+             menuSubItem("Data Entry", tabName = "subitem1"))
   )
 )
 

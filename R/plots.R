@@ -62,6 +62,20 @@ output$exwas_as <- renderPlot({
   outcome <- input$exwas_outcome
   cov <- input$exwas_covariables
   family_out <- input$exwas_output_family
+  cfa <- paste0("length(levels(as.factor(exposom$exp$", outcome, 
+                ")))!= 2 && family_out == 'binomial'")
+  cfa_b <- eval(str2lang(cfa))
+  cfb <- paste0("!is(exposom$exp$", outcome, ", 'numeric')")
+  cfb_b <- eval(str2lang(cfb))
+  if (cfa_b == TRUE) {
+    shinyalert("Oops!", "Select the proper distribution for that outcome (outcome not binomial)",
+               type = "warning")
+  }
+ # else if (cfb_b == TRUE) {
+  #  shinyalert("Oops!", "Non numeric outcome variable selected",
+  #             type = "warning")
+#  }
+  else {
   formula_plot <- paste(outcome, "~ 1")
   if (length(cov) > 0) {
     for (i in 1:length(cov)) {
@@ -71,20 +85,32 @@ output$exwas_as <- renderPlot({
   formula_plot <- as.formula(formula_plot)
   fl <- exwas(exposom$exp, formula = formula_plot,
               family = family_out)
-  if (dim(fl@comparison)[1] == 0) {
-    shinyalert("Oops!", "Select the proper distribution for that outcome", type = "warning")
-  }
-  else {
-    exposom$exwas_eff <- 0.05/fl@effective
-    clr <- rainbow(length(familyNames(exposom$exp)))
-    names(clr) <- familyNames(exposom$exp)
-    if (input$exwas_choice == "Manhattan-like plot") {
-      plotExwas(fl, color = clr) + 
-        ggtitle("Exposome Association Study - Univariate Approach")}
-    else {plotEffect(fl)}
+  exposom$exwas_eff <- 0.05/fl@effective
+  clr <- rainbow(length(familyNames(exposom$exp)))
+  names(clr) <- familyNames(exposom$exp)
+  if (input$exwas_choice == "Manhattan-like plot") {
+    plotExwas(fl, color = clr) + 
+      ggtitle("Exposome Association Study - Univariate Approach")}
+  else {plotEffect(fl)}
   }
 })
 output$mea <- renderPlot({
+  outcome <- input$mexwas_outcome
+  family_out <- input$mexwas_output_family
+  cfa <- paste0("length(levels(as.factor(exposom$exp$", outcome, 
+                ")))!= 2 && family_out == 'binomial'")
+  cfa_b <- eval(str2lang(cfa))
+  cfb <- paste0("!is(exposom$exp$", outcome, ", 'numeric')")
+  cfb_b <- eval(str2lang(cfb))
+  if (cfa_b == TRUE) {
+    shinyalert("Oops!", "Select the proper distribution for that outcome (outcome not binomial)",
+               type = "warning")
+  }
+  else if (cfb_b == TRUE) {
+    shinyalert("Oops!", "Non numeric outcome variable selected",
+               type = "warning")
+  }
+  else {
   if (anyNA(expos(exposom$exp)) == TRUE) {
     shinyalert("Info", "Performing separate imputation using mice to perform the MExWAS", 
                type = "info", timer = 5000, showConfirmButton = FALSE)
@@ -132,11 +158,9 @@ output$mea <- renderPlot({
                              description.expCol = "Exposure")
       
       ex_1 <- toES(exp_imp, rid = 1)
+      fl_m <- mexwas(ex_1, phenotype = outcome, family = family_out)
+      browser()
     })
-    outcome <- input$mexwas_outcome
-    family_out <- input$mexwas_output_family
-    fl_m <- mexwas(ex_1, phenotype = outcome, family = family_out)
-    browser()
     plotExwas(fl_m) +
       ylab("") +
       ggtitle("Exposome Association Study - Multivariate Approach")
@@ -148,5 +172,6 @@ output$mea <- renderPlot({
     plotExwas(fl_m) +
       ylab("") +
       ggtitle("Exposome Association Study - Multivariate Approach")
+  }
   }
 })

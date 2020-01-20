@@ -1,4 +1,7 @@
 server <- function(input, output, session) {
+  source("plots.R", local = TRUE)
+  source("download_handlers.R", local = TRUE)
+  source("table_renders.R", local = TRUE)
   exposom <- reactiveValues(exp = NULL, exp_std = NULL, exp_pca = NULL, nm = NULL, 
                             lod_candidates = NULL, lod_candidates_index = NULL, 
                             normal_false = NULL, exposures_values = NULL, exwas_eff = NULL)
@@ -61,14 +64,6 @@ server <- function(input, output, session) {
       })
     }
   })
-  output$download_lod <- downloadHandler(
-      filename = function() {
-        paste0('exposures_lod_imputed','.csv')
-      },
-      content = function(con) {
-        write.csv(exposom$exposures_values, con, row.names = FALSE)
-      }
-    )
   observeEvent(input$lod_help_button, {
     shinyalert("LOD imputation info", "
               To introduce the desired values of LOD, double click on the value column of the desired exposure.
@@ -79,11 +74,6 @@ server <- function(input, output, session) {
                [1]: Richardson DB, Ciampi A. Effects of exposure measurement error when an exposure variable is constrained by a lower limit.
 ", type = "info")
   })
-  output$lod_data_entry_table <- renderDT(
-    exposom$lod_candidates, selection = 'none', 
-    server = F, editable = list(target = "cell", disable = list(columns = 1)),
-    options=list(columnDefs = list(list(visible=FALSE, targets=c(0)))))
-  proxy = dataTableProxy('lod_data_entry_table')
   observeEvent(input$lod_data_entry_table_cell_edit, {
     info = input$lod_data_entry_table_cell_edit
     i = info$row
@@ -152,27 +142,13 @@ server <- function(input, output, session) {
     selectInput("exwas_covariables", "Choose the covariable(s):",
                 exposom_lists$phenotypes_list, multiple = TRUE)
   })
-  output$missPlot <- renderPlot(
-    plotMissings(exposom$exp, set = "exposures")
-  )
-  output$exp_normality <- renderDT(exposom$nm, class = 'cell-border stripe',
-                                   options=list(columnDefs = list(list(visible=FALSE,
-                                                                       targets=c(0))),
-                                                digits = 2),
-                                   colnames = c("Exposure", "Normality", "P-Value"),
-                                   selection = "single")
   observeEvent(input$help_normalize_values, {
     shinyalert("Normalize info", "
               To introduce the desired normalizing method, double click on the normalization method column and introduce the desired method.
               The supported methods are 'log', '^1/3' and 'sqrt'.
               If no normalization method is desired input 'none'.", type = "info")
   })
-  output$exp_normality_false <- renderDT(exposom$normal_false, class = 'cell-border stripe',
-                                   colnames = c("Exposure", "Normalization method"),
-                                   selection = "none", server = F, 
-                                   editable = list(target = "cell", disable = list(columns = 1)),
-                                   options=list(columnDefs = list(list(visible=FALSE,
-                                                                       targets=c(0)))))
+  
   proxy = dataTableProxy('exp_normality_false')
   observeEvent(input$exp_normality_false_cell_edit, {
     info = input$exp_normality_false_cell_edit
@@ -200,160 +176,11 @@ server <- function(input, output, session) {
       }
     })
   })
-  output$exp_normality_graph <- renderPlot({
-    exp_index = input$exp_normality_rows_selected
-    exp_title = paste0(exposom$nm[[1]][exp_index], " - Histogram")
-    plotHistogram(exposom$exp, select = exposom$nm[[1]][exp_index]) + ggtitle(exp_title)
-  })
-  output$exp_behaviour <- renderPlot({
-    family_selected = input$family
-    group_selected = input$group
-    group_selected2 = input$group2
-    if (group_selected != "None" && group_selected2 != "None") {
-      plotFamily(exposom$exp, family = family_selected, group = group_selected,
-                 group2 = group_selected2)
-    }
-    else if (group_selected != "None" && group_selected2 == "None") {
-      plotFamily(exposom$exp, family = family_selected, group = group_selected)
-    }
-    else if (group_selected == "None" && group_selected2 != "None") {
-      plotFamily(exposom$exp, family = family_selected, group2 = group_selected2)
-    }
-    else {plotFamily(exposom$exp, family = family_selected)}
-  })
-  output$exp_pca <- renderPlot({
-    set_pca = input$pca_set
-    pheno_pca = input$group_pca
-    if (set_pca == "samples" && pheno_pca != "None") {
-      plotPCA(exposom$exp_pca, set = set_pca, phenotype = pheno_pca)
-    }
-    else {plotPCA(exposom$exp_pca, set = set_pca)}
-  })
-  output$exp_correlation <- renderPlot({
-    type <- input$exp_corr_choice
-    exp_cr <- correlation(exposom$exp, use = "pairwise.complete.obs", method.cor = "pearson")
-    if (type == "Matrix") {
-      plotCorrelation(exp_cr, type = "matrix")
-    }
-    else {
-      plotCorrelation(exp_cr, type = "circos")
-    }
-    
-    
-  })
-  output$ind_clustering <- renderPlot({
-    hclust_data <- function(data, ...) {
-      hclust(d = dist(x = data), ...)
-    }
-    hclust_k3 <- function(result) {
-      cutree(result, k = 3)
-    }
-    exp_c <- clustering(exposom$exp, method = hclust_data, cmethod = hclust_k3)
-    plotClassification(exp_c)
-  })
-  output$exp_association <- renderPlot({
-    if (input$ass_choice == "Exposures to the principal components") {
-      plotEXP(exposom$exp_pca) + theme(axis.text.y = element_text(size = 6.5)) + ylab("")
-    }
-    else {
-      plotPHE(exposom$exp_pca)
-    }
-  })
-  output$exwas_as <- renderPlot({
-    outcome <- input$exwas_outcome
-    cov <- input$exwas_covariables
-    family_out <- input$exwas_output_family
-    formula_plot <- paste(outcome, "~ 1")
-    if (length(cov) > 0) {
-      for (i in 1:length(cov)) {
-        formula_plot <- paste(formula_plot, "+", cov[i])
-      }
-    }
-    formula_plot <- as.formula(formula_plot)
-    fl <- exwas(exposom$exp, formula = formula_plot,
-                family = family_out)
-    if (dim(fl@comparison)[1] == 0) {
-      shinyalert("Oops!", "Select the proper distribution for that outcome", type = "warning")
-    }
-    else {
-      exposom$exwas_eff <- 0.05/fl@effective
-      clr <- rainbow(length(familyNames(exposom$exp)))
-      names(clr) <- familyNames(exposom$exp)
-      if (input$exwas_choice == "Manhattan-like plot") {
-        plotExwas(fl, color = clr) + 
-          ggtitle("Exposome Association Study - Univariate Approach")}
-      else {plotEffect(fl)}
-    }
-  })
+  
   output$exwas_effect <- renderText({
     paste("Number of effective tests: ", round(exposom$exwas_eff, digits=1))
   })
-  output$mea <- renderPlot({
-    if (anyNA(expos(exposom$exp)) == TRUE) {
-      shinyalert("Info", "Performing separate imputation using mice to perform the MExWAS", 
-                 type = "info", timer = 5000, showConfirmButton = FALSE)
-      withProgress(message = 'Imputing the missing values', value = 0, {
-        dd <- read.csv(files$description, header=TRUE, stringsAsFactors=FALSE)
-        ee <- read.csv(files$exposures, header=TRUE)
-        pp <- read.csv(files$phenotypes, header=TRUE)
-        
-        rownames(ee) <- ee$idnum
-        rownames(pp) <- pp$idnum
-        
-        incProgress(0.2)
-        
-        dta <- cbind(ee[ , -1], pp[ , -1])
-        
-        for (ii in 1:length(dta)) {
-          if (length(levels(as.factor(dta[,ii]))) < 6) {
-            dta[ , ii] <- as.factor(dta[ , ii])
-          }
-          else {
-            dta[, ii] <- as.numeric(dta[ , ii])
-          }
-        }
-        
-        bd_column_inde <- grep("birthdate", colnames(dta))
-        
-        incProgress(0.5)
-        imp <- mice(dta[ , -bd_column_inde], pred = quickpred(dta[ , -bd_column_inde],
-                    mincor = 0.2, minpuc = 0.4), 
-                    seed = 38788, m = 5, maxit = 10, printFlag = FALSE)
-        
-        incProgress(0.7)
-        
-        me <- NULL
-        
-        for(set in 1:5) {
-          im <- mice::complete(imp, action = set)
-          im[ , ".imp"] <- set
-          im[ , ".id"] <- rownames(im)
-          me <- rbind(me, im)
-        }
-        
-        exp_imp <- loadImputed(data = me, description = dd, 
-                               description.famCol = "Family", 
-                               description.expCol = "Exposure")
-        
-        ex_1 <- toES(exp_imp, rid = 1)
-      })
-      outcome <- input$mexwas_outcome
-      family_out <- input$mexwas_output_family
-      fl_m <- mexwas(ex_1, phenotype = outcome, family = family_out)
-      browser()
-      plotExwas(fl_m) +
-        ylab("") +
-        ggtitle("Exposome Association Study - Multivariate Approach")
-    }
-    else {
-      outcome <- input$mexwas_outcome
-      family_out <- input$mexwas_output_family
-      fl_m <- mexwas(exposom$exp, phenotype = outcome, family = family_out)
-      plotExwas(fl_m) +
-        ylab("") +
-        ggtitle("Exposome Association Study - Multivariate Approach")
-    }
-  })
+  
   observeEvent(input$impute_missings, {
     withProgress(message = 'Imputing the missing values', value = 0, {
       dd <- read.csv(files$description, header=TRUE, stringsAsFactors=FALSE)
@@ -411,91 +238,4 @@ server <- function(input, output, session) {
       
     })
   })
-  #ARRREGLAR EL ARXIU QUE SURTI LA PRIMERA COLUMNA DELS ID'S
-  output$download_impset <- downloadHandler(
-    filename = function() {
-      paste0('exposures_imputed','.csv')
-    },
-    content = function(con) {
-      write.csv(rexposome::expos(exposom$exp), con, row.names = FALSE)
-    }
-  )
-  # MILLORAR LA IMPLEMENTACIO PER PODER TRIAR ON ES GUARDE!
-  output$download_impset_rdata <- downloadHandler(
-    filename = function() {
-      paste0('exposures_imputed','.Rdata')
-    },
-    content = function(con) {
-      saveRDS(exposom$exp, file = "exposures_imputed.Rdata")
-    }
-  )
-  output$missPlot_down <- downloadHandler(
-    filename = function(){
-      paste('missing_data', '.png', sep = '')
-    },
-    content = function(file){
-      ggsave(file, plot = last_plot(), device = 'png')
-    }
-  )
-  output$exp_behaviour_down <- downloadHandler(
-    filename = function(){
-      paste('exp_behaviour', '.png', sep = '')
-    },
-    content = function(file){
-      ggsave(file, plot = last_plot(), device = 'png')
-    }
-  )
-  output$exp_pca_down <- downloadHandler(
-    filename = function(){
-      paste('exp_pca', '.png', sep = '')
-    },
-    content = function(file){
-      ggsave(file, plot = last_plot(), device = 'png')
-    }
-  )
-  output$exp_association_down <- downloadHandler(
-    filename = function(){
-      paste('exp_association', '.png', sep = '')
-    },
-    content = function(file){
-      ggsave(file, plot = last_plot(), device = 'png')
-    }
-  )
-  output$exp_correlation_down <- downloadHandler(
-    filename = function(){
-      paste('exp_correlation', '.png', sep = '')
-    },
-    content = function(file){
-      ggsave(file, plot = last_plot(), device = 'png')
-    }
-  )
-  output$ind_clustering_down <- downloadHandler(
-    filename = function(){
-      paste('ind_clustering', '.png', sep = '')
-    },
-    content = function(file){
-      ggsave(file, plot = last_plot(), device = 'png')
-    }
-  )
-  output$exwas_as_down <- downloadHandler(
-    filename = function(){
-      paste('exwas_as', '.png', sep = '')
-    },
-    content = function(file){
-      ggsave(file, plot = last_plot(), device = 'png')
-    }
-  )
-  output$mea_down <- downloadHandler(
-    filename = function(){
-      paste('mea', '.png', sep = '')
-    },
-    content = function(file){
-      ggsave(file, plot = last_plot(), device = 'png')
-    }
-  )
 }
-
-
-
-
-
