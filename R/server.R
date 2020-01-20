@@ -340,6 +340,7 @@ server <- function(input, output, session) {
       outcome <- input$mexwas_outcome
       family_out <- input$mexwas_output_family
       fl_m <- mexwas(ex_1, phenotype = outcome, family = family_out)
+      browser()
       plotExwas(fl_m) +
         ylab("") +
         ggtitle("Exposome Association Study - Multivariate Approach")
