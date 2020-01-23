@@ -3,6 +3,7 @@ server <- function(input, output, session) {
   source("plots.R", local = TRUE)
   source("download_handlers.R", local = TRUE)
   source("table_renders.R", local = TRUE)
+  source("volcano_plot_inter.R", local = TRUE)
   exposom <- reactiveValues(exp = NULL, exp_std = NULL, exp_pca = NULL, nm = NULL, 
                             lod_candidates = NULL, lod_candidates_index = NULL, 
                             normal_false = NULL, exposures_values = NULL, exwas_eff = NULL,
@@ -49,7 +50,7 @@ server <- function(input, output, session) {
     withProgress(message = "Running model", value = 0, {
       sva <- input$sva_checkbox
       vars <- input$omic_form_set
-      formula_ass <- "~ 1"
+      formula_ass <- "~ "
       if (length(vars) > 0) {
         for (i in 1:length(vars)) {
           formula_ass <- paste(formula_ass, "+", vars[i])

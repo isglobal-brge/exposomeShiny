@@ -175,3 +175,15 @@ output$mea <- renderPlot({
   }
   }
 })
+output$qqplot <- renderPlot({
+  plotAssociation(omics$gexp, type = "qq") #+ 
+    #ggplot2::ggtitle("Transcriptome - Pb Association")
+})
+output$volcan_plot <- renderPlot({
+  browser()
+  aux <- getAssociation(omics$gexp)
+  pvalues <- aux$P.Value
+  logfc <- aux$logFC
+  names <- rownames(aux)
+  volcano_plot_inter(pvalues, logfc, names)
+})

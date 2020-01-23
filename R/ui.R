@@ -6,6 +6,7 @@ library(MultiDataSet)
 library(mice)
 library(DT)
 library(ggplot2)
+library(ggiraph)
 library(data.table)
 library(truncdist)
 library(shinyalert)
@@ -199,21 +200,24 @@ body <- dashboardBody(
             )
     ),
     tabItem(tabName = "ass_vis",
-            tabPanel('Model visualization',
-                     actionButton("ass_vis_results_table", "Results table"),
-                     bsModal("ass_vis_results_table_bs", "", "ass_vis_results_table", size = "largs",
-                             uiOutput("ass_vis_results_select_exposure"),
-                             uiOutput("ass_vis_results_select_exposure_run"),
-                             DTOutput("ass_vis_results_table_bs_dt")
-                             ),
-                     actionButton("ass_vis_table", "Data table"),
-                     bsModal("ass_vis_table_bs", "", "ass_vis_table", size = "large",
-                             DTOutput("ass_vis_table_bs_dt")
-                             ),
-                     actionButton("ass_vis_qq", "QQ plot"),
-                     actionButton("ass_vis_volcan", "Volcan plot")
+            tabBox(width = 12,
+              tabPanel("Results table",
+                       uiOutput("ass_vis_results_select_exposure"),
+                       uiOutput("ass_vis_results_select_exposure_run"),
+                       DTOutput("ass_vis_results_table_bs_dt")
+                       ),
+              tabPanel("Data table", 
+                       DTOutput("ass_vis_table_bs_dt")
+                       ),
+              tabPanel("QQ Plot",
+                       plotOutput("qqplot")
+                       ),
+              tabPanel("Volcan plot",
+                       plotOutput("volcan_plot", click = "volcan_click")
+                       )
             )
-    )
+            )
+    
   )
 )
 # Put them together into a dashboardPage
