@@ -12,12 +12,24 @@ server <- function(input, output, session) {
                                   exposure_names = NULL, exposure_names_withall = NULL,
                                   exposure_class = NULL)
   omics <- reactiveValues(multi = NULL, omic_file = NULL, hit_lam_table = NULL, results_table = NULL, gexp = NULL)
+  info_messages <- reactiveValues(messageData = NULL, exp_status = 0, omic_status = 0,
+                                  exp_hue = "red", omic_hue = "red")
   
+  output$messageMenu <- renderMenu({
+    info_messages$messageData <- data.frame(value = c(info_messages$exp_status,info_messages$omic_status),
+                                            color = c(info_messages$exp_hue, info_messages$omic_hue), text = c("Exposome dataset", "Omics dataset"))
+    msgs <- apply(info_messages$messageData, 1, function(row) {
+      taskItem(value = row[["value"]], color = row[["color"]], row[["text"]])
+    })
+    dropdownMenu(type = "notifications", .list = msgs)
+  })
   observeEvent(input$omic_data_load, {
     withProgress(message = "Loading data", value = 0, {
     omics$multi <- createMultiDataSet()
     incProgress(0.5)
     omics$omic_file <- get(load(input$omic_data$datapath))
+    info_messages$omic_status <- 100
+    info_messages$omic_hue <- "green"
     })
   })
   observeEvent(input$subset_and_add, {
@@ -124,6 +136,8 @@ server <- function(input, output, session) {
         actionButton("lod_substitution_input", "Perform LOD imputation with the values provided")
       })
     }
+    info_messages$exp_status <- 100
+    info_messages$exp_hue <- "green"
   })
   observeEvent(input$lod_help_button, {
     shinyalert("LOD imputation info", "

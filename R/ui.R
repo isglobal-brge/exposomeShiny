@@ -43,6 +43,8 @@ sidebar <- dashboardSidebar(
   )
 )
 
+
+
 body <- dashboardBody(
   tabItems(
     tabItem(tabName = "data_entry",
@@ -216,7 +218,8 @@ body <- dashboardBody(
 )
 # Put them together into a dashboardPage
 dashboardPage(
-  dashboardHeader(title = "rexposome"),
+  dashboardHeader(title = "rexposome",
+    dropdownMenuOutput("messageMenu")),
   sidebar,
   body
 )
