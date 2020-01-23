@@ -1,6 +1,8 @@
 library(shiny) 
 library(shinyBS) 
 library(rexposome)
+library(omicRexposome)
+library(MultiDataSet)
 library(mice)
 library(DT)
 library(ggplot2)
@@ -33,7 +35,11 @@ sidebar <- dashboardSidebar(
     menuItem("Multivariate ExWAS", icon = icon("bars"), tabName = "m_exwas",
                badgeColor = "green"),
     menuItem("Omic Data", icon = icon("th"), 
-             menuSubItem("Data Entry", tabName = "subitem1"))
+             menuSubItem("Data Entry", tabName = "omic_data_entry"),
+             menuSubItem("Exposome subsetting", tabName = "epxosom_subset"),
+             menuSubItem("Association model", tabName = "omic_association"),
+             menuSubItem("Model visualization", tabName = "ass_vis")
+             )
   )
 )
 
@@ -166,10 +172,48 @@ body <- dashboardBody(
                              downloadButton("mea_down", "Download plot"),
                              plotOutput("mea", height = "700px"))
             )
+    ),
+    tabItem(tabName = "omic_data_entry",
+            tabPanel('Omic data entry',
+                     fluidRow(
+                       column(6,
+                              fileInput("omic_data", "Choose the omic data file"),
+                              actionButton("omic_data_load", "Load omic data")
+                       ),
+                     )
+            )
+    ),
+    tabItem(tabName = "epxosom_subset",
+            tabPanel('Exposome subsetting',
+                     uiOutput("expos_subset_choose"),
+                     actionButton("subset_and_add", "Subset and add")
+            )
+    ),
+    tabItem(tabName = "omic_association",
+            tabPanel('Association model',
+                     uiOutput("omic_ass_formula"),
+                     checkboxInput("sva_checkbox", "SVA", value = FALSE),
+                     actionButton("omic_ass_run", "Run model")
+            )
+    ),
+    tabItem(tabName = "ass_vis",
+            tabPanel('Model visualization',
+                     actionButton("ass_vis_results_table", "Results table"),
+                     bsModal("ass_vis_results_table_bs", "", "ass_vis_results_table", size = "largs",
+                             uiOutput("ass_vis_results_select_exposure"),
+                             uiOutput("ass_vis_results_select_exposure_run"),
+                             DTOutput("ass_vis_results_table_bs_dt")
+                             ),
+                     actionButton("ass_vis_table", "Data table"),
+                     bsModal("ass_vis_table_bs", "", "ass_vis_table", size = "large",
+                             DTOutput("ass_vis_table_bs_dt")
+                             ),
+                     actionButton("ass_vis_qq", "QQ plot"),
+                     actionButton("ass_vis_volcan", "Volcan plot")
+            )
     )
   )
 )
-
 # Put them together into a dashboardPage
 dashboardPage(
   dashboardHeader(title = "rexposome"),

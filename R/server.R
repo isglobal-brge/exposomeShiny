@@ -1,14 +1,73 @@
 server <- function(input, output, session) {
+  options(shiny.maxRequestSize=30*1024^2)
   source("plots.R", local = TRUE)
   source("download_handlers.R", local = TRUE)
   source("table_renders.R", local = TRUE)
   exposom <- reactiveValues(exp = NULL, exp_std = NULL, exp_pca = NULL, nm = NULL, 
                             lod_candidates = NULL, lod_candidates_index = NULL, 
-                            normal_false = NULL, exposures_values = NULL, exwas_eff = NULL)
+                            normal_false = NULL, exposures_values = NULL, exwas_eff = NULL,
+                            exp_subset = NULL)
   files <- reactiveValues(description = NULL, phenotypes = NULL, exposures = NULL)
   exposom_lists <- reactiveValues(phenotypes_list = NULL, phenotypes_list_og = NULL, 
-                                  exposure_names = NULL)
+                                  exposure_names = NULL, exposure_names_withall = NULL,
+                                  exposure_class = NULL)
+  omics <- reactiveValues(multi = NULL, omic_file = NULL, hit_lam_table = NULL, results_table = NULL, gexp = NULL)
   
+  observeEvent(input$omic_data_load, {
+    withProgress(message = "Loading data", value = 0, {
+    omics$multi <- createMultiDataSet()
+    incProgress(0.5)
+    omics$omic_file <- get(load(input$omic_data$datapath))
+    })
+  })
+  observeEvent(input$subset_and_add, {
+    # implementar el subsetting
+    exposom$exp_subset <- exposom$exp
+    exposom_lists$exposure_class <- exposureNames(exposom$exp_subset)
+    omics$multi <- add_exp(omics$multi, exposom$exp)
+    if (class(omics$omic_file)[1] == "ExpressionSet") {
+      omics$multi <- add_eset(omics$multi, omics$omic_file, dataset.type = "expression")
+    }
+  })
+  output$omic_ass_formula <- renderUI({
+    selectInput("omic_form_set", "Choose association variables:",
+                exposom_lists$phenotypes_list_og, multiple = TRUE)
+  })
+  observeEvent(input$omic_ass_run, {
+    withProgress(message = "Running model", value = 0, {
+      sva <- input$sva_checkbox
+      vars <- input$omic_form_set
+      formula_ass <- "~ 1"
+      if (length(vars) > 0) {
+        for (i in 1:length(vars)) {
+          formula_ass <- paste(formula_ass, "+", vars[i])
+        }
+      }
+      formula_ass <- as.formula(formula_ass)
+      if (sva == TRUE) {sva_a <- "fast"}
+      else {sva_a <- "none"}
+      incProgress(0.5)
+      omics$gexp <- association(omics$multi, formula = formula_ass, expset = "exposures", omicset = "expression", sva = sva_a)
+      incProgress(0.7)
+      hit <- tableHits(omics$gexp, th=0.001)
+      lab <- tableLambda(omics$gexp)
+      omics$hit_lam_table <- merge(hit, lab, by="exposure")
+      sub_expr <- paste0("omics$results_table <- omics$gexp@results$", exposom_lists$exposure_class[1], "$result$coefficients")
+      eval(str2lang(sub_expr))
+    })
+  })
+  output$ass_vis_results_select_exposure <- renderUI({
+    selectInput("omic_results_selection", "Choose an exposure to visualize it's results:",
+                exposom_lists$exposure_class)
+  })
+  output$ass_vis_results_select_exposure_run <- renderUI({
+    actionButton("omic_results_selection_run", "Visualize")
+  })
+  observeEvent(input$omic_results_selection_run, {
+    selection <- input$omic_results_selection
+    sub_expr <- paste0("omics$results_table <- omics$gexp@results$", selection, "$result$coefficients")
+    eval(str2lang(sub_expr))
+  })
   observeEvent(input$data_load, {
     description_file <- input$description
     files$description <- description_file$datapath
@@ -39,6 +98,8 @@ server <- function(input, output, session) {
     exposom_lists$phenotypes_list <- append(exposom_lists$phenotypes_list_og,
                                              'None', after = 0)
     exposom_lists$exposure_names <- as.list(familyNames(exposom$exp))
+    exposom_lists$exposure_names_withall <- append(exposom_lists$exposure_names,
+                                                   'All', after = 0)
     exposom$exposures_values <- as.data.table(read.csv(files$exposures))
     description_values <- read.csv(files$description)
     exposom$lod_candidates <- unique(as.list(as.character(description_values[which(exposom$exposures_values == -1,
@@ -237,5 +298,9 @@ server <- function(input, output, session) {
       })
       
     })
+  })
+  output$expos_subset_choose <- renderUI({
+    selectInput("exp_subsets", "Choose an exposure family:",
+                exposom_lists$exposure_names_withall, selected = 'All', multiple = TRUE)
   })
 }
