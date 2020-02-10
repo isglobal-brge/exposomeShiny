@@ -12,7 +12,8 @@ server <- function(input, output, session) {
   exposom_lists <- reactiveValues(phenotypes_list = NULL, phenotypes_list_og = NULL, 
                                   exposure_names = NULL, exposure_names_withall = NULL,
                                   exposure_class = NULL)
-  omics <- reactiveValues(multi = NULL, omic_file = NULL, hit_lam_table = NULL, results_table = NULL, gexp = NULL)
+  omics <- reactiveValues(multi = NULL, omic_file = NULL, hit_lam_table = NULL, 
+                          results_table = NULL, gexp = NULL, aux = NULL, dta = NULL)
   info_messages <- reactiveValues(messageData = NULL, exp_status = 0, omic_status = 0,
                                   exp_hue = "red", omic_hue = "red")
   
@@ -35,6 +36,7 @@ server <- function(input, output, session) {
   })
   observeEvent(input$subset_and_add, {
     # implementar el subsetting
+    browser()
     exposom$exp_subset <- exposom$exp
     exposom_lists$exposure_class <- exposureNames(exposom$exp_subset)
     omics$multi <- add_exp(omics$multi, exposom$exp)

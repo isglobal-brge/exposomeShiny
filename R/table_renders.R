@@ -20,3 +20,20 @@ output$ass_vis_table_bs_dt <- renderDT(omics$hit_lam_table, class = 'cell-border
                                        options=list(columnDefs = list(list(visible=FALSE,
                                                                            targets=c(0)))))
 output$ass_vis_results_table_bs_dt <- renderDT(omics$results_table, class = 'cell-border stripe')
+output$selectedProbesTable <- renderDataTable(
+  nearPoints(omics$aux[,c(1,6)], input$volcanoPlotSelection),
+  options = list(dom = "tip", pageLength = 10, searching = FALSE)
+)
+output$selectedProbesTable <- renderDT(
+  nearPoints(omics$dta, input$volcanoPlotSelection), selection = "single", 
+  class = 'cell-border stripe', options=list(searching = FALSE, columnDefs = list(list(visible=FALSE,
+  targets=c(0, 3, 4, 5, 6))))
+)
+
+
+# output$selectedProbesTable <- renderDataTable(
+#   
+#   nearPoints(omics$dta, input$volcanoPlotSelection),
+#   
+#   options = list(dom = "tip", pageLength = 10, searching = FALSE)
+# )

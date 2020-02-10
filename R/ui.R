@@ -44,8 +44,6 @@ sidebar <- dashboardSidebar(
   )
 )
 
-
-
 body <- dashboardBody(
   tabItems(
     tabItem(tabName = "data_entry",
@@ -213,7 +211,25 @@ body <- dashboardBody(
                        plotOutput("qqplot")
                        ),
               tabPanel("Volcan plot",
-                       plotOutput("volcan_plot", click = "volcan_click")
+                       fluidRow(
+                         column(
+                           width = 3,
+                           numericInput("pval_tres", expression(-log[10](P-Value)), min = 0, max = 5, value = 3)
+                         ),
+                         column(
+                           width = 3,
+                           numericInput("logfold_tres", expression(log[2](Fold~Change)), min = 0, max = 3, value = 2)
+                         )                       ),
+                       fluidRow(
+                         column(
+                           width = 6,
+                           plotOutput("volcanoPlot", click = "volcanoPlotSelection", height = "500px")
+                         ),
+                         column(
+                           width = 6,
+                           dataTableOutput("selectedProbesTable")
+                         )
+                       )
                        )
             )
             )
