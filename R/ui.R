@@ -11,6 +11,10 @@ library(data.table)
 library(truncdist)
 library(shinyalert)
 library(shinydashboard)
+library(TxDb.Hsapiens.UCSC.hg19.knownGene)
+library(org.Hs.eg.db)
+library(GenomicRanges)
+library(CTDquerier)
 
 ## ui.R ##
 sidebar <- dashboardSidebar(
@@ -39,7 +43,8 @@ sidebar <- dashboardSidebar(
              menuSubItem("Data Entry", tabName = "omic_data_entry"),
              menuSubItem("Exposome subsetting", tabName = "epxosom_subset"),
              menuSubItem("Association model", tabName = "omic_association"),
-             menuSubItem("Model visualization", tabName = "ass_vis")
+             menuSubItem("Model visualization", tabName = "ass_vis"),
+             menuSubItem("CTDquerier Results", tabName = "CTDquerier_res")
              )
   )
 )
@@ -204,13 +209,26 @@ body <- dashboardBody(
                        uiOutput("ass_vis_results_select_exposure_run"),
                        DTOutput("ass_vis_results_table_bs_dt")
                        ),
-              tabPanel("Data table", 
+              tabPanel("Significant hits", 
                        DTOutput("ass_vis_table_bs_dt")
                        ),
               tabPanel("QQ Plot",
+                       uiOutput("qq_rid_select"),
                        plotOutput("qqplot")
                        ),
               tabPanel("Volcan plot",
+                       fluidRow(
+                         column(
+                           width = 6,
+                           textInput("chr_name", "Name of chromosome variable", value = "chr"),
+                           textInput("start_name", "Name of start variable", value = "start")
+                         ),
+                         column(
+                           width = 6,
+                           textInput("end_name", "Name of end variable", value = "end"),
+                           textInput("symb_name", "Name of symbol variable", value = "symb")
+                         )
+                       ),
                        fluidRow(
                          column(
                            width = 3,
@@ -219,7 +237,13 @@ body <- dashboardBody(
                          column(
                            width = 3,
                            numericInput("logfold_tres", expression(log[2](Fold~Change)), min = 0, max = 3, value = 2)
-                         )                       ),
+                         )
+                         ),
+                       fluidRow(
+                         column(
+                           width = 3,
+                         )
+                       ),
                        fluidRow(
                          column(
                            width = 6,
@@ -227,11 +251,21 @@ body <- dashboardBody(
                          ),
                          column(
                            width = 6,
-                           dataTableOutput("selectedProbesTable")
+                           dataTableOutput("selectedProbesTable"),
+                           actionButton("stop", "Add to querier"),
+                           dataTableOutput("selected_symbols"),
+                           actionButton("ctd_query", "ctd_query"),
+                           actionButton("remove_symbols", "remove_symbols")
                          )
                        )
                        )
             )
+            ),
+    tabItem(tabName = "CTDquerier_res",
+            tabBox(width = 12,
+                   tabPanel("Lost & found",
+                            h3("j")
+                            ))
             )
     
   )

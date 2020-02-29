@@ -16,6 +16,7 @@ server <- function(input, output, session) {
                           results_table = NULL, gexp = NULL, aux = NULL, dta = NULL)
   info_messages <- reactiveValues(messageData = NULL, exp_status = 0, omic_status = 0,
                                   exp_hue = "red", omic_hue = "red")
+  ctd_d <- reactiveValues(symbol = NULL, gala = NULL, all_diseases = NULL)
   
   output$messageMenu <- renderMenu({
     info_messages$messageData <- data.frame(value = c(info_messages$exp_status,info_messages$omic_status),
@@ -35,11 +36,22 @@ server <- function(input, output, session) {
     })
   })
   observeEvent(input$subset_and_add, {
-    # implementar el subsetting
-    browser()
-    exposom$exp_subset <- exposom$exp
+    if (is.null(input$exp_subsets)) {
+      exposom$exp_subset <- exposom$exp
+    }
+    else {
+      fam <- input$exp_subsets
+      mask <- fData(exposom$exp)$Family==fam[1]
+      if (length(fam) > 1){
+        for (i in 2:length(fam)) {
+          indic <- fData(exposom$exp)$Family==fam[i]
+          mask <- mask | indic
+        }
+      }
+      exposom$exp_subset <- exposom$exp[mask,]
+    }
     exposom_lists$exposure_class <- exposureNames(exposom$exp_subset)
-    omics$multi <- add_exp(omics$multi, exposom$exp)
+    omics$multi <- add_exp(omics$multi, exposom$exp_subset)
     if (class(omics$omic_file)[1] == "ExpressionSet") {
       omics$multi <- add_eset(omics$multi, omics$omic_file, dataset.type = "expression")
     }
@@ -52,7 +64,7 @@ server <- function(input, output, session) {
     withProgress(message = "Running model", value = 0, {
       sva <- input$sva_checkbox
       vars <- input$omic_form_set
-      formula_ass <- "~ "
+      formula_ass <- "~ 1"
       if (length(vars) > 0) {
         for (i in 1:length(vars)) {
           formula_ass <- paste(formula_ass, "+", vars[i])
@@ -69,6 +81,7 @@ server <- function(input, output, session) {
       omics$hit_lam_table <- merge(hit, lab, by="exposure")
       sub_expr <- paste0("omics$results_table <- omics$gexp@results$", exposom_lists$exposure_class[1], "$result$coefficients")
       eval(str2lang(sub_expr))
+      omics$aux <- getAssociation(omics$gexp)
     })
   })
   output$ass_vis_results_select_exposure <- renderUI({
@@ -77,6 +90,10 @@ server <- function(input, output, session) {
   })
   output$ass_vis_results_select_exposure_run <- renderUI({
     actionButton("omic_results_selection_run", "Visualize")
+  })
+  output$qq_rid_select <- renderUI({
+    selectInput("qq_rid_select_input", "qq rid select pls",
+                exposom_lists$exposure_class)
   })
   observeEvent(input$omic_results_selection_run, {
     selection <- input$omic_results_selection
@@ -318,6 +335,55 @@ server <- function(input, output, session) {
   })
   output$expos_subset_choose <- renderUI({
     selectInput("exp_subsets", "Choose an exposure family:",
-                exposom_lists$exposure_names_withall, selected = 'All', multiple = TRUE)
+                exposom_lists$exposure_names, multiple = TRUE)
+  })
+  observeEvent(input$stop, {
+    chr_name <- input$chr_name
+    start_name <- input$start_name
+    end_name <- input$end_name
+    symb_name <- input$symb_name
+      
+    row_interest <- input$selectedProbesTable_rows_selected
+      #### FICAR PROTECCIO QUE SI NO HI HA CAP FILA SELECCIONADA SURTI UN POP UP
+    gene <- nearPoints(omics$dta, input$volcanoPlotSelection)[row_interest,]$names
+    gg <- genes(TxDb.Hsapiens.UCSC.hg19.knownGene)
+    #as.data.table(fData(omics$gexp)$expression)[probeset_id == gene]
+    
+    chr_query <- paste0("as.data.table(fData(omics$gexp)$expression)[probeset_id == gene]$", chr_name)
+    start_query <- paste0("as.data.table(fData(omics$gexp)$expression)[probeset_id == gene]$", start_name)
+    end_query <- paste0("as.data.table(fData(omics$gexp)$expression)[probeset_id == gene]$", end_name)
+    
+    chr <- eval(str2lang(chr_query))
+    start <- eval(str2lang(start_query))
+    end <- eval(str2lang(end_query))
+    
+    roi <- GRanges(chr, IRanges(start, end))
+    gene_id <- subsetByOverlaps(roi, gg, )
+    m <- findOverlaps(roi, gg)
+    gene_id <- mcols(gg[subjectHits(m)])$gene_id
+    symbol <- unlist(mget(gene_id, org.Hs.egSYMBOL))
+    if (!is.null(symbol)) {
+      # TRIGGER UI BOTO CTDQUERIER WITH SELECTED SYMBOLS
+      ctd_d$symbol <- rbind(ctd_d$symbol, symbol)
+      }
+    else {
+      #SHINY ALERT
+    }
+    
+    
+    
+    
+    })
+  
+  observeEvent(input$remove_symbols, {
+    browser()
+    rows_to_remove <- input$selected_symbols_rows_selected
+    as.data.table(ctd_d$symbol)[-rows_to_remove,]
+  })
+  
+  observeEvent(input$ctd_query, {
+    #ctd_d$gala <- query_ctd_gene(terms = ctd_d$symbol, verbose = TRUE)
+    ctd_d$all_diseases <- get_table( ctd_d$gala, index_name = "diseases" )
+    
   })
 }
