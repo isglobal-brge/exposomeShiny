@@ -11,16 +11,24 @@ server <- function(input, output, session) {
   files <- reactiveValues(description = NULL, phenotypes = NULL, exposures = NULL)
   exposom_lists <- reactiveValues(phenotypes_list = NULL, phenotypes_list_og = NULL, 
                                   exposure_names = NULL, exposure_names_withall = NULL,
-                                  exposure_class = NULL)
+                                  exposure_class = NULL, subset_list = NULL, model_list = NULL)
   omics <- reactiveValues(multi = NULL, omic_file = NULL, hit_lam_table = NULL, 
                           results_table = NULL, gexp = NULL, aux = NULL, dta = NULL)
   info_messages <- reactiveValues(messageData = NULL, exp_status = 0, omic_status = 0,
-                                  exp_hue = "red", omic_hue = "red")
-  ctd_d <- reactiveValues(symbol = NULL, gala = NULL, all_diseases = NULL)
+                                  exp_hue = "red", omic_hue = "red",
+                                  subset_groups = "Subset: ", subset_status = 0,
+                                  model_groups = "Model: ", model_status = 0)
+  ctd_d <- reactiveValues(symbol = NULL, all_diseases = NULL, ctd_query = NULL,  
+                          ctd_query_table = NULL, ctd_query_table_curated = NULL,
+                          associated_diseases = NULL)
   
   output$messageMenu <- renderMenu({
-    info_messages$messageData <- data.frame(value = c(info_messages$exp_status,info_messages$omic_status),
-                                            color = c(info_messages$exp_hue, info_messages$omic_hue), text = c("Exposome dataset", "Omics dataset"))
+    info_messages$messageData <- data.frame(value = c(info_messages$exp_status,info_messages$omic_status, info_messages$subset_status,
+                                                      info_messages$model_status),
+                                            color = c(info_messages$exp_hue, info_messages$omic_hue, "green", "green"), 
+                                            text = c("Exposome dataset", "Omics dataset", paste(info_messages$subset_groups, 
+                                                                           paste(exposom_lists$subset_list, collapse = ", ")),
+                                                     paste(info_messages$model_groups, paste(exposom_lists$model_list, collapse = ", "))))
     msgs <- apply(info_messages$messageData, 1, function(row) {
       taskItem(value = row[["value"]], color = row[["color"]], row[["text"]])
     })
@@ -36,25 +44,32 @@ server <- function(input, output, session) {
     })
   })
   observeEvent(input$subset_and_add, {
-    if (is.null(input$exp_subsets)) {
-      exposom$exp_subset <- exposom$exp
-    }
-    else {
-      fam <- input$exp_subsets
-      mask <- fData(exposom$exp)$Family==fam[1]
-      if (length(fam) > 1){
-        for (i in 2:length(fam)) {
-          indic <- fData(exposom$exp)$Family==fam[i]
-          mask <- mask | indic
-        }
+    withProgress(message = 'Subsetting and adding', value = 0, {
+      if (is.null(input$exp_subsets)) {
+        exposom$exp_subset <- exposom$exp
       }
-      exposom$exp_subset <- exposom$exp[mask,]
-    }
+      else {
+        fam <- input$exp_subsets
+        mask <- fData(exposom$exp)$Family==fam[1]
+        if (length(fam) > 1){
+          for (i in 2:length(fam)) {
+            indic <- fData(exposom$exp)$Family==fam[i]
+            mask <- mask | indic
+          }
+        }
+        exposom_lists$subset_list <- fam
+        info_messages$subset_status <- 100
+        exposom$exp_subset <- exposom$exp[mask,]
+      }
+      
+      incProgress(0.3)
+      
     exposom_lists$exposure_class <- exposureNames(exposom$exp_subset)
-    omics$multi <- add_exp(omics$multi, exposom$exp_subset)
+    omics$multi <- add_exp(omics$multi, exposom$exp_subset, overwrite = TRUE)
     if (class(omics$omic_file)[1] == "ExpressionSet") {
-      omics$multi <- add_eset(omics$multi, omics$omic_file, dataset.type = "expression")
+      omics$multi <- add_eset(omics$multi, omics$omic_file, dataset.type = "expression", overwrite = TRUE)
     }
+    })
   })
   output$omic_ass_formula <- renderUI({
     selectInput("omic_form_set", "Choose association variables:",
@@ -79,26 +94,17 @@ server <- function(input, output, session) {
       hit <- tableHits(omics$gexp, th=0.001)
       lab <- tableLambda(omics$gexp)
       omics$hit_lam_table <- merge(hit, lab, by="exposure")
+      omics$hit_lam_table[, 3] <- round(omics$hit_lam_table[, 3], digits = 2)
       sub_expr <- paste0("omics$results_table <- omics$gexp@results$", exposom_lists$exposure_class[1], "$result$coefficients")
       eval(str2lang(sub_expr))
       omics$aux <- getAssociation(omics$gexp)
+      exposom_lists$model_list <- vars
+      info_messages$model_status <- 100
     })
   })
-  output$ass_vis_results_select_exposure <- renderUI({
-    selectInput("omic_results_selection", "Choose an exposure to visualize it's results:",
-                exposom_lists$exposure_class)
-  })
-  output$ass_vis_results_select_exposure_run <- renderUI({
-    actionButton("omic_results_selection_run", "Visualize")
-  })
   output$qq_rid_select <- renderUI({
-    selectInput("qq_rid_select_input", "qq rid select pls",
+    selectInput("qq_rid_select_input", "Select the exposure to plot:",
                 exposom_lists$exposure_class)
-  })
-  observeEvent(input$omic_results_selection_run, {
-    selection <- input$omic_results_selection
-    sub_expr <- paste0("omics$results_table <- omics$gexp@results$", selection, "$result$coefficients")
-    eval(str2lang(sub_expr))
   })
   observeEvent(input$data_load, {
     description_file <- input$description
@@ -237,6 +243,14 @@ server <- function(input, output, session) {
     selectInput("exwas_covariables", "Choose the covariable(s):",
                 exposom_lists$phenotypes_list, multiple = TRUE)
   })
+  output$ctd_select_disease <- renderUI({
+    selectInput("ctd_disease", "Choose the disease:",
+                ctd_d$associated_diseases)
+  })
+  output$inf_score_selector <- renderUI({
+    selectInput("s.dis", "Choose the disease: ",
+                ctd_d$associated_diseases)
+  })
   observeEvent(input$help_normalize_values, {
     shinyalert("Normalize info", "
               To introduce the desired normalizing method, double click on the normalization method column and introduce the desired method.
@@ -344,46 +358,90 @@ server <- function(input, output, session) {
     symb_name <- input$symb_name
       
     row_interest <- input$selectedProbesTable_rows_selected
-      #### FICAR PROTECCIO QUE SI NO HI HA CAP FILA SELECCIONADA SURTI UN POP UP
-    gene <- nearPoints(omics$dta, input$volcanoPlotSelection)[row_interest,]$names
-    gg <- genes(TxDb.Hsapiens.UCSC.hg19.knownGene)
-    #as.data.table(fData(omics$gexp)$expression)[probeset_id == gene]
-    
-    chr_query <- paste0("as.data.table(fData(omics$gexp)$expression)[probeset_id == gene]$", chr_name)
-    start_query <- paste0("as.data.table(fData(omics$gexp)$expression)[probeset_id == gene]$", start_name)
-    end_query <- paste0("as.data.table(fData(omics$gexp)$expression)[probeset_id == gene]$", end_name)
-    
-    chr <- eval(str2lang(chr_query))
-    start <- eval(str2lang(start_query))
-    end <- eval(str2lang(end_query))
-    
-    roi <- GRanges(chr, IRanges(start, end))
-    gene_id <- subsetByOverlaps(roi, gg, )
-    m <- findOverlaps(roi, gg)
-    gene_id <- mcols(gg[subjectHits(m)])$gene_id
-    symbol <- unlist(mget(gene_id, org.Hs.egSYMBOL))
-    if (!is.null(symbol)) {
-      # TRIGGER UI BOTO CTDQUERIER WITH SELECTED SYMBOLS
-      ctd_d$symbol <- rbind(ctd_d$symbol, symbol)
-      }
-    else {
-      #SHINY ALERT
+    if (is.null(row_interest)) {
+      shinyalert("Oops!", "
+              Make sure to select an item to be added to the querier.
+", type = "error")
     }
-    
-    
-    
-    
+    else {
+      gene <- nearPoints(omics$dta, input$volcanoPlotSelection)[row_interest,]$names
+      gg <- genes(TxDb.Hsapiens.UCSC.hg19.knownGene)
+      chr_query <- paste0("as.data.table(fData(omics$gexp)$expression)[probeset_id == gene]$", chr_name)
+      start_query <- paste0("as.data.table(fData(omics$gexp)$expression)[probeset_id == gene]$", start_name)
+      end_query <- paste0("as.data.table(fData(omics$gexp)$expression)[probeset_id == gene]$", end_name)
+      chr <- eval(str2lang(chr_query))
+      start <- eval(str2lang(start_query))
+      end <- eval(str2lang(end_query))
+      roi <- GRanges(chr, IRanges(start, end))
+      gene_id <- subsetByOverlaps(roi, gg, )
+      m <- findOverlaps(roi, gg)
+      gene_id <- mcols(gg[subjectHits(m)])$gene_id
+      symbol <- unlist(mget(gene_id, org.Hs.egSYMBOL))
+      if (!is.null(symbol)) {
+        ctd_d$symbol <- rbind(as.data.table(ctd_d$symbol), symbol)
+      }
+      else {
+        shinyalert("Oops!", "
+              The selected symbol could not be found.
+", type = "warning")
+      }
+    }
     })
   
   observeEvent(input$remove_symbols, {
-    browser()
     rows_to_remove <- input$selected_symbols_rows_selected
-    as.data.table(ctd_d$symbol)[-rows_to_remove,]
+    if (is.null(rows_to_remove)) {
+      shinyalert("Oops!", "
+              Make sure to select an item to be removed from the querier.
+", type = "error")
+    }
+    else {
+      ctd_d$symbol <- as.data.table(ctd_d$symbol)[-rows_to_remove,]
+    }
+    
+    
   })
   
   observeEvent(input$ctd_query, {
-    #ctd_d$gala <- query_ctd_gene(terms = ctd_d$symbol, verbose = TRUE)
-    ctd_d$all_diseases <- get_table( ctd_d$gala, index_name = "diseases" )
-    
+    withProgress(message = 'Performing the selected query', value = 0, {
+    incProgress(0.2)
+    ctd_d$ctd_query <- query_ctd_gene(terms = ctd_d$symbol[[1]], verbose = TRUE)
+    ctd_d$ctd_query_table <- get_table(ctd_d$ctd_query, index_name = "diseases")
+    incProgress(0.4)
+    ctd_d$ctd_query_table_curated <- ctd_d$ctd_query_table[!is.na(ctd_d$ctd_query_table$Direct.Evidence), ]
+    incProgress(0.6)
+    ctd_d$ctd_query_table_curated <- ctd_d$ctd_query_table_curated[ctd_d$ctd_query_table_curated$Direct.Evidence != "", ]
+    incProgress(0.8)
+    ctd_d$associated_diseases <- unique(ctd_d$ctd_query_table_curated$Disease.Name)
+    })
+  })
+  output$lost_genes <- renderPrint({
+    print(get_terms(ctd_d$ctd_query)[["lost"]])
+  })
+  output$found_genes <- renderPrint({
+    print(get_terms(ctd_d$ctd_query)[["found"]])
+  })
+  output$ctd_disease_score <- renderPrint({
+    print(mean( ctd_d$ctd_query_table[ctd_d$ctd_query_table_curated$Disease.Name == input$ctd_disease,]$Inference.Score, na.rm = TRUE ))
+  })
+  output$ctd_disease_papers <- renderPrint({
+    print(sum( ctd_d$ctd_query_table[ctd_d$ctd_query_table_curated$Disease.Name == input$ctd_disease,]$Reference.Count, na.rm = TRUE ))
+  })
+  observeEvent(input$save, {
+    withProgress(message = 'Saving environment', value = 0, {
+      incProgress(0.5)
+      #save(list = c("exposom", "files", "exposom_lists", "omics", "info_messages", "ctd_d"), 
+      #     file = paste0(Sys.Date(), "environment.RData"))
+      browser()
+      save(exposom$exp_pca, file = "prova.RData")
+    })
+  })
+  observeEvent(input$environment_load, {
+    browser()
+    env_file <- input$environment
+    env_path <- env_file$datapath
+    load(env_path)
   })
 }
+
+

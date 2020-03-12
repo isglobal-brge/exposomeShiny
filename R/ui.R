@@ -73,7 +73,10 @@ body <- dashboardBody(
                                           "text/comma-separated-values,text/plain",
                                           ".csv")
                               ),
-                              actionButton("data_load", "Load data")
+                              actionButton("data_load", "Load data"),
+                              # tags$hr(style="border-color: black;"),
+                              # fileInput("environment", "Load rexposomeShiny environment"),
+                              # actionButton("environment_load", "Load environment")
                        ),
                        uiOutput("dl_lodtable_ui", align = "center"),
                        uiOutput("lod_help", align = "center"),
@@ -203,10 +206,9 @@ body <- dashboardBody(
             )
     ),
     tabItem(tabName = "ass_vis",
+            fluidRow(
             tabBox(width = 12,
               tabPanel("Results table",
-                       uiOutput("ass_vis_results_select_exposure"),
-                       uiOutput("ass_vis_results_select_exposure_run"),
                        DTOutput("ass_vis_results_table_bs_dt")
                        ),
               tabPanel("Significant hits", 
@@ -217,6 +219,12 @@ body <- dashboardBody(
                        plotOutput("qqplot")
                        ),
               tabPanel("Volcan plot",
+                       fluidRow(
+                         column(
+                           width = 12,
+                           h3("Parameters:")
+                         )
+                       ),
                        fluidRow(
                          column(
                            width = 6,
@@ -231,11 +239,11 @@ body <- dashboardBody(
                        ),
                        fluidRow(
                          column(
-                           width = 3,
+                           width = 6,
                            numericInput("pval_tres", expression(-log[10](P-Value)), min = 0, max = 5, value = 3)
                          ),
                          column(
-                           width = 3,
+                           width = 6,
                            numericInput("logfold_tres", expression(log[2](Fold~Change)), min = 0, max = 3, value = 2)
                          )
                          ),
@@ -246,26 +254,60 @@ body <- dashboardBody(
                        ),
                        fluidRow(
                          column(
-                           width = 6,
-                           plotOutput("volcanoPlot", click = "volcanoPlotSelection", height = "500px")
-                         ),
+                           width = 12,
+                           h3("Volcan plot:"),
+                           plotOutput("volcanoPlot", click = "volcanoPlotSelection", height = "300px")
+                         )
+                       ),
+                       fluidRow(
                          column(
-                           width = 6,
+                           width = 12,
+                           h3("Selected point information:"),
                            dataTableOutput("selectedProbesTable"),
                            actionButton("stop", "Add to querier"),
+                           h3("Querier:"),
                            dataTableOutput("selected_symbols"),
-                           actionButton("ctd_query", "ctd_query"),
-                           actionButton("remove_symbols", "remove_symbols")
+                           actionButton("ctd_query", "Query selected genes on the CTD gene database"),
+                           actionButton("remove_symbols", "Remove from querier")
                          )
                        )
                        )
-            )
+            ))
             ),
     tabItem(tabName = "CTDquerier_res",
             tabBox(width = 12,
                    tabPanel("Lost & found",
-                            h3("j")
-                            ))
+                            plotOutput("ctd_lost_found"),
+                            h3("Found genes:"),
+                            verbatimTextOutput("found_genes"),
+                            h3("Lost genes:"),
+                            verbatimTextOutput("lost_genes")
+                            ),
+                   tabPanel("Diseases",
+                            dataTableOutput("ctd_diseases")
+                   ),
+                   tabPanel("Curated diseases",
+                            dataTableOutput("ctd_diseases_curated")
+                   ),
+                   tabPanel("Association",
+                            uiOutput("ctd_select_disease"),
+                            h3("Disease score:"),
+                            verbatimTextOutput("ctd_disease_score"),
+                            h3("Reference count:"),
+                            verbatimTextOutput("ctd_disease_papers")
+                   ),
+                   tabPanel("Inference Score",
+                            uiOutput("inf_score_selector"),
+                            numericInput("f.sco", "Choose the filter score: ", min = 0, value = 20),
+                            plotOutput("ctd_inference_score"),
+                            downloadButton("inf_down", "Download plot")
+                   ),
+                   tabPanel("Association Matrix",
+                            numericInput("f.sco_matrix", "Choose the filter score: ", min = 0, value = 20),
+                            plotOutput("ass_matrix_ctd"),
+                            downloadButton("assm_down", "Download plot")
+                   )
+                   )
             )
     
   )
@@ -273,7 +315,12 @@ body <- dashboardBody(
 # Put them together into a dashboardPage
 dashboardPage(
   dashboardHeader(title = "rexposome",
+    # tags$li(class = "dropdown", div(style="display:inline-block;padding: 10px 0;",
+    #                                 bookmarkButton())),
+    # tags$li(class = "dropdown", div(style="display:inline-block;padding: 10px 0;",actionButton("save", "Save ", icon("save"),
+    #                                          style="color: #fff; background-color: #337ab7; border-color: #2e6da4"))),
     dropdownMenuOutput("messageMenu")),
   sidebar,
   body
 )
+

@@ -181,9 +181,24 @@ output$qqplot <- renderPlot({
     #ggplot2::ggtitle("Transcriptome - Pb Association")
 })
 output$volcanoPlot <- renderPlot({
-  
   pvalues <- omics$aux$P.Value
   logfc <- omics$aux$logFC
   names <- rownames(omics$aux)
   volcano_plot_inter(pvalues, logfc, names)
 })
+output$ctd_lost_found <- renderPlot({
+  plot(ctd_d$ctd_query) + ggtitle( "Lost & Found Genes" )
+})
+output$ctd_inference_score <- renderPlot({
+  s.dis <- input$s.dis
+  f.sco <- input$f.sco
+  plot(ctd_d$ctd_query, index_name = "disease", subset.disease = s.dis, filter.score = f.sco)
+})
+
+output$ass_matrix_ctd <- renderPlot({
+  f.sco <- input$f.sco_matrix
+  plot(ctd_d$ctd_query, index_name = "chemical interactions", filter.score = f.sco)
+})
+
+
+

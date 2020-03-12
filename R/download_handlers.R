@@ -88,3 +88,19 @@ output$download_lod <- downloadHandler(
     write.csv(exposom$exposures_values, con, row.names = FALSE)
   }
 )
+output$inf_down <- downloadHandler(
+  filename = function(){
+    paste('inference_score', '.png', sep = '')
+  },
+  content = function(file){
+    ggsave(file, plot = last_plot(), device = 'png')
+  }
+)
+output$assm_down <- downloadHandler(
+  filename = function(){
+    paste('association_matrix', '.png', sep = '')
+  },
+  content = function(file){
+    ggsave(file, plot = last_plot(), device = 'png')
+  }
+)
