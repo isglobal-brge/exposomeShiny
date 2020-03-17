@@ -48,7 +48,7 @@ output$ind_clustering <- renderPlot({
     cutree(result, k = 3)
   }
   exp_c <- clustering(exposom$exp, method = hclust_data, cmethod = hclust_k3)
-  plotClassification(exp_c)
+  plotClassification(exp_c, type = "valuemap", family = "all")
 })
 output$exp_association <- renderPlot({
   if (input$ass_choice == "Exposures to the principal components") {
@@ -159,7 +159,6 @@ output$mea <- renderPlot({
       
       ex_1 <- toES(exp_imp, rid = 1)
       fl_m <- mexwas(ex_1, phenotype = outcome, family = family_out)
-      browser()
     })
     plotExwas(fl_m) +
       ylab("") +
