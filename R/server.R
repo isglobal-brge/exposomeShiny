@@ -36,9 +36,19 @@ server <- function(input, output, session) {
   })
   observeEvent(input$omic_data_load, {
     withProgress(message = "Loading data", value = 0, {
+      omics$omic_file <- get(load(input$omic_data$datapath))
+      a <- sampleNames(omics$omic_file)
+      b <- sampleNames(exposom$exp)
+      c <- intersect(a, b)
+      if (length(c) == 0) {
+        shinyalert("Oops!","Individual id's in omic data are not in the ExpomosomeSet" , type = "error")
+      }
+      else {
+        shinyalert("Info", paste0("Omic data analysis will be perfomed with ", length(c)," samples") , type = "info")
+      }
     omics$multi <- createMultiDataSet()
     incProgress(0.5)
-    omics$omic_file <- get(load(input$omic_data$datapath))
+    
     info_messages$omic_status <- 100
     info_messages$omic_hue <- "green"
     })
