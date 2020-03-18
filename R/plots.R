@@ -62,19 +62,31 @@ output$exwas_as <- renderPlot({
   outcome <- input$exwas_outcome
   cov <- input$exwas_covariables
   family_out <- input$exwas_output_family
-  cfa <- paste0("length(levels(as.factor(exposom$exp$", outcome, 
-                ")))!= 2 && family_out == 'binomial'")
-  cfa_b <- eval(str2lang(cfa))
-  cfb <- paste0("!is(exposom$exp$", outcome, ", 'numeric')")
-  cfb_b <- eval(str2lang(cfb))
-  if (cfa_b == TRUE) {
-    shinyalert("Oops!", "Select the proper distribution for that outcome (outcome not binomial)",
+    # binomical test (true equals var is binomical, false no binomical)
+  B <- paste0("length(levels(as.factor(exposom$exp$", outcome, 
+                ")))== 2")
+  B <- eval(str2expression(B))
+    # numeric test (true equals numerical, false non numerical)
+  N <- paste0("is(exposom$exp$", outcome, ", 'numeric')")
+  N <- eval(str2lang(N))
+    # output binomial (true equals that the ouput is set to binomial)
+  O <- family_out == "binomial"
+  
+  if (B == TRUE && O == FALSE) {
+    shinyalert("Oops!", "Family output should be set to binomial",
                type = "warning")
   }
- # else if (cfb_b == TRUE) {
-  #  shinyalert("Oops!", "Non numeric outcome variable selected",
-  #             type = "warning")
-#  }
+  
+  else if (B == FALSE && N == TRUE && O == TRUE) {
+    shinyalert("Oops!", "Output should not be set to binomial",
+               type = "warning")
+  }
+  
+  else if (B == FALSE && N == FALSE) {
+    shinyalert("Oops!", "Variable is not numerical nor binomial",
+               type = "warning")
+  }
+  
   else {
   formula_plot <- paste(outcome, "~ 1")
   if (length(cov) > 0) {
@@ -83,15 +95,15 @@ output$exwas_as <- renderPlot({
     }
   }
   formula_plot <- as.formula(formula_plot)
-  fl <- exwas(exposom$exp, formula = formula_plot,
+  exposom$fl <- exwas(exposom$exp, formula = formula_plot,
               family = family_out)
-  exposom$exwas_eff <- 0.05/fl@effective
+  exposom$exwas_eff <- 0.05/exposom$fl@effective
   clr <- rainbow(length(familyNames(exposom$exp)))
   names(clr) <- familyNames(exposom$exp)
   if (input$exwas_choice == "Manhattan-like plot") {
-    plotExwas(fl, color = clr) + 
+    plotExwas(exposom$fl, color = clr) + 
       ggtitle("Exposome Association Study - Univariate Approach")}
-  else {plotEffect(fl)}
+  else {plotEffect(exposom$fl)}
   }
 })
 output$mea <- renderPlot({
@@ -198,6 +210,27 @@ output$ass_matrix_ctd <- renderPlot({
   f.sco <- input$f.sco_matrix
   plot(ctd_d$ctd_query, index_name = "chemical interactions", filter.score = f.sco)
 })
-
+output$gene_inter_ctd <- renderPlot({
+  fscore <- input$gene_inter_ctd_filter
+  plot(ctd_d$ctd_chems, index_name = "gene interactions", filter.score = fscore)
+})
+output$gene_chem_inter_ctd <- renderPlot({
+  fscore <- input$gene_chem_inter_ctd_filter
+  plot(ctd_d$ctd_chems, index_name = "gene interactions", representation = "network", filter.score = fscore,
+       main = "Gen-Chemical interaction")
+})
+output$disease_ctd <- renderPlot({
+  plot(ctd_d$ctd_chems, index_name = "disease")
+})
+output$kegg_ctd <- renderPlot({
+  fscore <- input$kegg_ctd_filter
+  fscore <- paste0("1e-", fscore)
+  plot(ctd_d$ctd_chems, index_name = "kegg pathways", filter.score = as.numeric(fscore))
+})
+output$go_ctd <- renderPlot({
+  fscore <- input$go_ctd_filter
+  fscore <- paste0("1e-", fscore)
+  plot(ctd_d$ctd_chems, index_name = "go terms", representation = "network", filter.score = as.numeric(fscore))
+})
 
 

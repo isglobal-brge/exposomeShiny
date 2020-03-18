@@ -7,7 +7,7 @@ server <- function(input, output, session) {
   exposom <- reactiveValues(exp = NULL, exp_std = NULL, exp_pca = NULL, nm = NULL, 
                             lod_candidates = NULL, lod_candidates_index = NULL, 
                             normal_false = NULL, exposures_values = NULL, exwas_eff = NULL,
-                            exp_subset = NULL)
+                            exp_subset = NULL, fl = NULL, ctd_exp = NULL)
   files <- reactiveValues(description = NULL, phenotypes = NULL, exposures = NULL)
   exposom_lists <- reactiveValues(phenotypes_list = NULL, phenotypes_list_og = NULL, 
                                   exposure_names = NULL, exposure_names_withall = NULL,
@@ -20,7 +20,7 @@ server <- function(input, output, session) {
                                   model_groups = "Model: ", model_status = 0)
   ctd_d <- reactiveValues(symbol = NULL, all_diseases = NULL, ctd_query = NULL,  
                           ctd_query_table = NULL, ctd_query_table_curated = NULL,
-                          associated_diseases = NULL)
+                          associated_diseases = NULL, ctd_chems = NULL)
   
   output$messageMenu <- renderMenu({
     info_messages$messageData <- data.frame(value = c(info_messages$exp_status,info_messages$omic_status, info_messages$subset_status,
@@ -397,7 +397,10 @@ server <- function(input, output, session) {
       }
     }
     })
-  
+  observeEvent(input$stop_exwas, {
+    ch <- input$exwas_asPlotSelection$domain$discrete_limits$y[[round(input$exwas_asPlotSelection$y)]]
+    exposom$ctd_exp <- rbind(exposom$ctd_exp, ch)
+  })
   observeEvent(input$remove_symbols, {
     rows_to_remove <- input$selected_symbols_rows_selected
     if (is.null(rows_to_remove)) {
@@ -408,8 +411,17 @@ server <- function(input, output, session) {
     else {
       ctd_d$symbol <- as.data.table(ctd_d$symbol)[-rows_to_remove,]
     }
-    
-    
+  })
+  observeEvent(input$remove_symbols_exwas, {
+    rows_to_remove <- input$selected_symbols_exwas_rows_selected
+    if (is.null(rows_to_remove)) {
+      shinyalert("Oops!", "
+              Make sure to select an item to be removed from the querier.
+", type = "error")
+    }
+    else {
+      exposom$ctd_exp <- as.matrix(as.data.table(exposom$ctd_exp)[-rows_to_remove])
+    }
   })
   
   observeEvent(input$ctd_query, {
@@ -423,6 +435,11 @@ server <- function(input, output, session) {
     ctd_d$ctd_query_table_curated <- ctd_d$ctd_query_table_curated[ctd_d$ctd_query_table_curated$Direct.Evidence != "", ]
     incProgress(0.8)
     ctd_d$associated_diseases <- unique(ctd_d$ctd_query_table_curated$Disease.Name)
+    })
+  })
+  observeEvent(input$ctd_query_exwas, {
+    withProgress(message = 'Performing the selected query', value = 0.5, {
+      ctd_d$ctd_chems <- query_ctd_chem(terms = exposom$ctd_exp)
     })
   })
   output$lost_genes <- renderPrint({

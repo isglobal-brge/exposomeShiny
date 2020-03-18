@@ -23,20 +23,28 @@ output$ass_vis_results_table_bs_dt <- renderDT(round(omics$aux, digits = 2),
                                       class = 'cell-border stripe',
                                       options=list(columnDefs = list(list(visible=FALSE,
                                       targets=c(2,3,4,5,8,9)))))
-# output$selectedProbesTable <- renderDataTable(
-#   nearPoints(omics$aux[,c(1,6)], input$volcanoPlotSelection),
-#   options = list(dom = "tip", pageLength = 10, searching = FALSE)
-# )
 output$selectedProbesTable <- renderDataTable(
   nearPoints(omics$dta, input$volcanoPlotSelection), selection = "single", 
   class = 'cell-border stripe', options=list(searching = FALSE, columnDefs = list(list(visible=FALSE,
   targets=c(0, 4, 5, 6, 7))))
 )
-
+output$selectedProbesTable_exwas <- renderDataTable(
+  data.frame(Chemical = tryCatch({input$exwas_asPlotSelection$domain$discrete_limits$y[[round(input$exwas_asPlotSelection$y)]]}, 
+                                 error = function(cond){}),
+Pvalue = tryCatch({round(-log10(as.numeric(exposom$fl@comparison[input$exwas_asPlotSelection$domain$discrete_limits$y[[round(input$exwas_asPlotSelection$y)]],]$pvalue)), digits = 2)},
+                 error = function(cond){}
+                 )), 
+  selection = "single", class = 'cell-border stripe', options=list(searching = FALSE, columnDefs = list(list(visible=FALSE,
+                                                                                       targets=c(0))))
+)
 output$selected_symbols <- renderDataTable(ctd_d$symbol, class = 'cell-border stripe',
                                            selection = "multiple",
                                            options=list(columnDefs = list(list(visible=FALSE,
                                            targets=c(0)))))
+output$selected_symbols_exwas <- renderDataTable(data.table(Chemicals = exposom$ctd_exp[, 1]), class = 'cell-border stripe',
+                                           selection = "multiple",
+                                           options=list(columnDefs = list(list(visible=FALSE,
+                                                                               targets=c(0)))))
 
 output$ctd_diseases <- renderDataTable(as.data.table(ctd_d$ctd_query_table), class = 'cell-border stripe',
                                        options=list(columnDefs = list(list(visible=FALSE,

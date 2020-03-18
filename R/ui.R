@@ -36,7 +36,10 @@ sidebar <- dashboardSidebar(
     menuItem("Cluster Exposures", icon = icon("chalkboard"), tabName = "cluster_exposures",
                badgeColor = "green"),
     menuItem("ExWAS", icon = icon("braille"), tabName = "exwas",
-               badgeColor = "green"),
+               badgeColor = "green",
+             menuSubItem("ExWAS", tabName = "n_exwas"),
+             menuSubItem("Chemical CTDquerier Results", tabName = "CTDquerier_exwas")
+             ),
     menuItem("Multivariate ExWAS", icon = icon("bars"), tabName = "m_exwas",
                badgeColor = "green"),
     menuItem("Omic Data", icon = icon("th"), 
@@ -154,23 +157,64 @@ body <- dashboardBody(
                      downloadButton("ind_clustering_down", "Download plot")
             )
     ),
-    tabItem(tabName = "exwas",
+    tabItem(tabName = "n_exwas",
             tabPanel('ExWAS',
-                     selectInput("exwas_choice", "Choose the ExWAS plot:",
-                                 list("Manhattan-like plot",
-                                      "Effect of the model"),
-                                 selected = "Manhattan-like plot"),
-                     uiOutput("exwas_outcome_ui"),
-                     selectInput("exwas_output_family", "Choose the output family:",
-                                 list("binomial","gaussian","poisson")),
-                     uiOutput("exwas_covariables_ui"),
-                     actionButton("exwas_plot", "Run model"),
-                     bsModal("exwas", "", "exwas_plot", size = "large",
-                             textOutput("exwas_effect"),
-                             plotOutput("exwas_as", height = "700px"),
-                             downloadButton("exwas_as_down", "Download plot"))
+                     fluidRow(
+                       column(6,
+                              selectInput("exwas_choice", "Choose the ExWAS plot:",
+                                          list("Manhattan-like plot",
+                                               "Effect of the model"),
+                                          selected = "Manhattan-like plot"),
+                              uiOutput("exwas_outcome_ui")
+                       ),
+                       column(6,
+                              selectInput("exwas_output_family", "Choose the output family:",
+                                          list("gaussian","binomial", "poisson")),
+                              uiOutput("exwas_covariables_ui")
+                       )
+                     ),
+                     fluidRow(
+                       column(8,
+                              textOutput("exwas_effect"),
+                              plotOutput("exwas_as", click = "exwas_asPlotSelection", height = "700px"),
+                              downloadButton("exwas_as_down", "Download plot")
+                       ),
+                       column(4,
+                              h3("Selected point information:"),
+                              dataTableOutput("selectedProbesTable_exwas"),
+                              actionButton("stop_exwas", "Add to querier"),
+                              h3("Querier:"),
+                              dataTableOutput("selected_symbols_exwas"),
+                              actionButton("ctd_query_exwas", "Query selected chemicals on the CTD gene database"),
+                              actionButton("remove_symbols_exwas", "Remove from querier")
+                       )
+                     ),
             )
     ),
+    tabItem(tabName = "CTDquerier_exwas",
+            fluidRow(
+              tabBox(width = 12,
+                     tabPanel("Gene interactions",
+                              numericInput("gene_inter_ctd_filter", "Choose the filter score: ", min = 0, value = 5),
+                              plotOutput("gene_inter_ctd")
+                     ),
+                     tabPanel("Gen-Chemical interactions", 
+                              numericInput("gene_chem_inter_ctd_filter", "Choose the filter score: ", min = 0, value = 3),
+                              plotOutput("gene_chem_inter_ctd")
+                     ),
+                     tabPanel("Disease",
+                              plotOutput("disease_ctd")
+                     ),
+                     tabPanel("Kegg pathways",
+                              numericInput("kegg_ctd_filter", "Choose the filter score: [1E-X]", min = 0, value = 10),
+                              plotOutput("kegg_ctd")
+                     ),
+                     tabPanel("Go terms",
+                              numericInput("go_ctd_filter", "Choose the filter score: [1E-X]", min = 0, value = 10),
+                              plotOutput("go_ctd")
+                     )
+              )
+    )),
     tabItem(tabName = "m_exwas",
             tabPanel('Multivariate ExWAS',
                      uiOutput("mexwas_outcome_ui"),
