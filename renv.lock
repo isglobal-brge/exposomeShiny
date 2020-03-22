@@ -43,6 +43,13 @@
       "Source": "Bioconductor",
       "Hash": "b2dabf833cc349c2cd9cba38de7af085"
     },
+    "BiocManager": {
+      "Package": "BiocManager",
+      "Version": "1.30.10",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "db75371846625725e221470b310da1d5"
+    },
     "BiocParallel": {
       "Package": "BiocParallel",
       "Version": "1.20.1",
@@ -54,6 +61,12 @@
       "Version": "2.54.0",
       "Source": "Bioconductor",
       "Hash": "edf03f0e37fc3c09c95dcf8bf3900972"
+    },
+    "CTDquerier": {
+      "Package": "CTDquerier",
+      "Version": "1.5.0",
+      "Source": "Bioconductor",
+      "Hash": "90ce887bfd609a7cfdc4d6da22321c3e"
     },
     "DBI": {
       "Package": "DBI",
@@ -815,6 +828,13 @@
       "Repository": "CRAN",
       "Hash": "7146fea4685b4252ebf478978c75f597"
     },
+    "igraph": {
+      "Package": "igraph",
+      "Version": "1.2.4.2",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "fffa635f747cd07ffc56bc13a23701e4"
+    },
     "impute": {
       "Package": "impute",
       "Version": "1.60.0",
@@ -1406,6 +1426,13 @@
       "Source": "Repository",
       "Repository": "CRAN",
       "Hash": "faa16caa79d66f09b556d5632e1856fa"
+    },
+    "stringdist": {
+      "Package": "stringdist",
+      "Version": "0.9.5.5",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "734fb9c45f9a36bcd1f1aa0c37a8a5b1"
     },
     "stringi": {
       "Package": "stringi",
