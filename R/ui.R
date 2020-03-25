@@ -148,13 +148,13 @@ body <- dashboardBody(
                                       "Circos plot"),
                                  selected = "Matrix"),
                      downloadButton("exp_correlation_down", "Download plot"),
-                     plotOutput("exp_correlation", height = '1000px')
+                     plotOutput("exp_correlation", height = '800px')
             )
     ),
     tabItem(tabName = "cluster_exposures",
             tabPanel('Cluster Exposures',
-                     plotOutput("ind_clustering", width = "100%"),
-                     downloadButton("ind_clustering_down", "Download plot")
+                     downloadButton("ind_clustering_down", "Download plot"),
+                     plotOutput("ind_clustering", width = "100%")
             )
     ),
     tabItem(tabName = "n_exwas",
@@ -185,7 +185,7 @@ body <- dashboardBody(
                               actionButton("stop_exwas", "Add to querier"),
                               h3("Querier:"),
                               dataTableOutput("selected_symbols_exwas"),
-                              actionButton("ctd_query_exwas", "Query selected chemicals on the CTD gene database"),
+                              actionButton("ctd_query_exwas", "Query on the CTD gene database"),
                               actionButton("remove_symbols_exwas", "Remove from querier")
                        )
                      ),
@@ -196,22 +196,30 @@ body <- dashboardBody(
               tabBox(width = 12,
                      tabPanel("Gene interactions",
                               numericInput("gene_inter_ctd_filter", "Choose the filter score: ", min = 0, value = 5),
-                              plotOutput("gene_inter_ctd")
+                              plotOutput("gene_inter_ctd"),
+                              downloadButton("gene_inter_ctd_down", "Download plot")
+                              
                      ),
                      tabPanel("Gen-Chemical interactions", 
                               numericInput("gene_chem_inter_ctd_filter", "Choose the filter score: ", min = 0, value = 3),
-                              plotOutput("gene_chem_inter_ctd")
+                              plotOutput("gene_chem_inter_ctd"),
+                              downloadButton("gene_chem_inter_ctd_down", "Download plot")
+                              
                      ),
                      tabPanel("Disease",
-                              plotOutput("disease_ctd")
+                              plotOutput("disease_ctd"),
+                              downloadButton("disease_ctd_down", "Download plot")
+                              
                      ),
                      tabPanel("Kegg pathways",
                               numericInput("kegg_ctd_filter", "Choose the filter score: [1E-X]", min = 0, value = 10),
-                              plotOutput("kegg_ctd")
+                              plotOutput("kegg_ctd"),
+                              downloadButton("kegg_ctd_down", "Download plot")
                      ),
                      tabPanel("Go terms",
                               numericInput("go_ctd_filter", "Choose the filter score: [1E-X]", min = 0, value = 10),
-                              plotOutput("go_ctd")
+                              plotOutput("go_ctd"),
+                              downloadButton("go_ctd_down", "Download plot")
                      )
               )
     )),
@@ -272,7 +280,7 @@ body <- dashboardBody(
                        fluidRow(
                          column(
                            width = 6,
-                           textInput("chr_name", "Name of chromosome variable", value = "chr"),
+                           textInput("chr_name", "Name of chromosome variable", value = "chromosome"),
                            textInput("start_name", "Name of start variable", value = "start")
                          ),
                          column(

@@ -4,7 +4,7 @@ output$download_impset <- downloadHandler(
     paste0('exposures_imputed','.csv')
   },
   content = function(con) {
-    write.csv(rexposome::expos(exposom$exp), con, row.names = FALSE)
+    write.csv(cbind(data.frame(idnum = sampleNames(exposom$exp)), rexposome::expos(exposom$exp)), con, row.names = FALSE)
   }
 )
 # MILLORAR LA IMPLEMENTACIO PER PODER TRIAR ON ES GUARDE!
@@ -99,6 +99,46 @@ output$inf_down <- downloadHandler(
 output$assm_down <- downloadHandler(
   filename = function(){
     paste('association_matrix', '.png', sep = '')
+  },
+  content = function(file){
+    ggsave(file, plot = last_plot(), device = 'png')
+  }
+)
+output$gene_inter_ctd_down <- downloadHandler(
+  filename = function(){
+    paste('gene_interaction_ctd', '.png', sep = '')
+  },
+  content = function(file){
+    ggsave(file, plot = last_plot(), device = 'png')
+  }
+)
+output$gene_chem_inter_ctd_down <- downloadHandler(
+  filename = function(){
+    paste('gene_chem_interaction_ctd', '.png', sep = '')
+  },
+  content = function(file){
+    ggsave(file, plot = last_plot(), device = 'png')
+  }
+)
+output$disease_ctd <- downloadHandler(
+  filename = function(){
+    paste('disease_ctd', '.png', sep = '')
+  },
+  content = function(file){
+    ggsave(file, plot = last_plot(), device = 'png')
+  }
+)
+output$kegg_ctd_down <- downloadHandler(
+  filename = function(){
+    paste('kegg_ctd', '.png', sep = '')
+  },
+  content = function(file){
+    ggsave(file, plot = last_plot(), device = 'png')
+  }
+)
+output$go_ctd_down <- downloadHandler(
+  filename = function(){
+    paste('go_ctd', '.png', sep = '')
   },
   content = function(file){
     ggsave(file, plot = last_plot(), device = 'png')

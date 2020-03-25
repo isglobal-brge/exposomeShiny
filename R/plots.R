@@ -109,19 +109,31 @@ output$exwas_as <- renderPlot({
 output$mea <- renderPlot({
   outcome <- input$mexwas_outcome
   family_out <- input$mexwas_output_family
-  cfa <- paste0("length(levels(as.factor(exposom$exp$", outcome, 
-                ")))!= 2 && family_out == 'binomial'")
-  cfa_b <- eval(str2lang(cfa))
-  cfb <- paste0("!is(exposom$exp$", outcome, ", 'numeric')")
-  cfb_b <- eval(str2lang(cfb))
-  if (cfa_b == TRUE) {
-    shinyalert("Oops!", "Select the proper distribution for that outcome (outcome not binomial)",
+  # binomical test (true equals var is binomical, false no binomical)
+  B <- paste0("length(levels(as.factor(exposom$exp$", outcome, 
+              ")))== 2")
+  B <- eval(str2expression(B))
+  # numeric test (true equals numerical, false non numerical)
+  N <- paste0("is(exposom$exp$", outcome, ", 'numeric')")
+  N <- eval(str2lang(N))
+  # output binomial (true equals that the ouput is set to binomial)
+  O <- family_out == "binomial"
+  
+  if (B == TRUE && O == FALSE) {
+    shinyalert("Oops!", "Family output should be set to binomial",
                type = "warning")
   }
-  else if (cfb_b == TRUE) {
-    shinyalert("Oops!", "Non numeric outcome variable selected",
+  
+  else if (B == FALSE && N == TRUE && O == TRUE) {
+    shinyalert("Oops!", "Output should not be set to binomial",
                type = "warning")
   }
+  
+  else if (B == FALSE && N == FALSE) {
+    shinyalert("Oops!", "Variable is not numerical nor binomial",
+               type = "warning")
+  }
+
   else {
   if (anyNA(expos(exposom$exp)) == TRUE) {
     shinyalert("Info", "Performing separate imputation using mice to perform the MExWAS", 

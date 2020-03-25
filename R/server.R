@@ -193,6 +193,15 @@ server <- function(input, output, session) {
     exposom$lod_candidates[i, j] <<- DT::coerceValue(v, as.numeric(exposom$lod_candidates[i, j]))
     replaceData(proxy, exposom$lod_candidates, resetPaging = FALSE)
   })
+  observeEvent(input$selected_symbols_exwas_cell_edit, {
+    info = input$selected_symbols_exwas_cell_edit
+    i = info$row
+    j = info$col
+    v = info$value
+    # browser()
+    exposom$ctd_exp[i, 1] <<- DT::coerceValue(v, as.character(data.table(Chemicals = exposom$ctd_exp[i, 1])))
+    replaceData(proxy, exposom$ctd_exp, resetPaging = FALSE)
+  })
   observeEvent(input$lod_substitution_input, {
     withProgress(message = 'Performing LOD imputation', value = 0, {
       col_cont <- 1
@@ -362,6 +371,7 @@ server <- function(input, output, session) {
                 exposom_lists$exposure_names, multiple = TRUE)
   })
   observeEvent(input$stop, {
+    browser()
     chr_name <- input$chr_name
     start_name <- input$start_name
     end_name <- input$end_name
