@@ -15,6 +15,7 @@ server <- function(input, output, session) {
   omics <- reactiveValues(multi = NULL, omic_file = NULL, hit_lam_table = NULL, 
                           results_table = NULL, gexp = NULL, aux = NULL, dta = NULL)
   info_messages <- reactiveValues(messageData = NULL, exp_status = 0, omic_status = 0,
+                                  lod_status = 0, missing_status = 0, normality_status = 0,
                                   exp_hue = "red", omic_hue = "red",
                                   subset_groups = "Subset: ", subset_status = 0,
                                   model_groups = "Model: ", model_status = 0)
@@ -23,10 +24,11 @@ server <- function(input, output, session) {
                           associated_diseases = NULL, ctd_chems = NULL)
   
   output$messageMenu <- renderMenu({
-    info_messages$messageData <- data.frame(value = c(info_messages$exp_status,info_messages$omic_status, info_messages$subset_status,
+    info_messages$messageData <- data.frame(value = c(info_messages$exp_status, info_messages$lod_status, info_messages$missing_status,
+                                                      info_messages$normality_status, info_messages$omic_status, info_messages$subset_status,
                                                       info_messages$model_status),
-                                            color = c(info_messages$exp_hue, info_messages$omic_hue, "green", "green"), 
-                                            text = c("Exposome dataset", "Omics dataset", paste(info_messages$subset_groups, 
+                                            color = c(info_messages$exp_hue, "green", "green", "green", info_messages$omic_hue, "green", "green"), 
+                                            text = c("Exposome dataset", "Exposome LOD", "Exposome imputed", "Exposome normalized", "Omics dataset", paste(info_messages$subset_groups, 
                                                                            paste(exposom_lists$subset_list, collapse = ", ")),
                                                      paste(info_messages$model_groups, paste(exposom_lists$model_list, collapse = ", "))))
     msgs <- apply(info_messages$messageData, 1, function(row) {
@@ -233,6 +235,7 @@ server <- function(input, output, session) {
         }
       }
     })
+    info_messages$lod_status <- 100
     output$download_lod_data <- renderUI({
       downloadButton('download_lod', label = "Download LOD imputed exposures.csv")
     })
@@ -303,6 +306,7 @@ server <- function(input, output, session) {
         shinyalert("Oops!", "An invalid normalizing method was introduced.", type = "error")
       }
     })
+    info_messages$normality_status <- 100
   })
   
   output$exwas_effect <- renderText({
@@ -365,6 +369,7 @@ server <- function(input, output, session) {
       })
       
     })
+    info_messages$missing_status <- 100
   })
   output$expos_subset_choose <- renderUI({
     selectInput("exp_subsets", "Choose an exposure family:",

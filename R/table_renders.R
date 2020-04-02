@@ -24,9 +24,9 @@ output$ass_vis_results_table_bs_dt <- renderDT(round(omics$aux, digits = 2),
                                       options=list(columnDefs = list(list(visible=FALSE,
                                       targets=c(2,3,4,5,8,9)))))
 output$selectedProbesTable <- renderDataTable(
-  nearPoints(omics$dta, input$volcanoPlotSelection), selection = "single", 
+  cbind(round(omics$aux[nearPoints(omics$dta, input$volcanoPlotSelection)$name,], digits = 2), fData(omics$gexp)$expression[nearPoints(omics$dta, input$volcanoPlotSelection)$name,c(input$start_name, input$end_name, input$chr_name)]), selection = "single", 
   class = 'cell-border stripe', options=list(searching = FALSE, columnDefs = list(list(visible=FALSE,
-  targets=c(0, 4, 5, 6, 7))))
+  targets=c(0, 2, 3, 4, 5, 8, 9))))
 )
 output$selectedProbesTable_exwas <- renderDataTable(
   data.frame(Chemical = tryCatch({input$exwas_asPlotSelection$domain$discrete_limits$y[[round(input$exwas_asPlotSelection$y)]]}, 
@@ -42,10 +42,10 @@ output$selected_symbols <- renderDataTable(ctd_d$symbol, class = 'cell-border st
                                            options=list(columnDefs = list(list(visible=FALSE,
                                            targets=c(0)))))
 output$selected_symbols_exwas <- renderDataTable(data.table(Chemicals = exposom$ctd_exp[, 1]), class = 'cell-border stripe',
-                                           selection = "multiple",
+                                           selection = "multiple", editable = list(target = "cell"),
                                            options=list(columnDefs = list(list(visible=FALSE,
                                                                                targets=c(0)))))
-
+proxy = dataTableProxy('selected_symbols_exwas')
 output$ctd_diseases <- renderDataTable(as.data.table(ctd_d$ctd_query_table), class = 'cell-border stripe',
                                        options=list(columnDefs = list(list(visible=FALSE,
                                                                            targets=c(4)))))
@@ -54,9 +54,3 @@ output$ctd_diseases_curated <- renderDataTable(as.data.table(ctd_d$ctd_query_tab
                                                options=list(columnDefs = list(list(visible=FALSE,
                                                                                    targets=c(3, 4)))))
 
-# output$selectedProbesTable <- renderDataTable(
-#   
-#   nearPoints(omics$dta, input$volcanoPlotSelection),
-#   
-#   options = list(dom = "tip", pageLength = 10, searching = FALSE)
-# )
