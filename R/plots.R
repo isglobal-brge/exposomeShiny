@@ -48,7 +48,7 @@ output$ind_clustering <- renderPlot({
     cutree(result, k = 3)
   }
   exp_c <- clustering(exposom$exp, method = hclust_data, cmethod = hclust_k3)
-  plotClassification(exp_c, type = "valuemap", family = "all")
+  plotClassification(exp_c)
 })
 output$exp_association <- renderPlot({
   if (input$ass_choice == "Exposures to the principal components") {

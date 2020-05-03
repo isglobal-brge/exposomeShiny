@@ -48,6 +48,7 @@ server <- function(input, output, session) {
       else {
         shinyalert("Info", paste0("Omic data analysis will be perfomed with ", length(c)," samples") , type = "info")
       }
+      
     omics$multi <- createMultiDataSet()
     incProgress(0.5)
     
@@ -119,6 +120,7 @@ server <- function(input, output, session) {
                 exposom_lists$exposure_class)
   })
   observeEvent(input$data_load, {
+
     description_file <- input$description
     files$description <- description_file$datapath
     phenotypes_file <- input$phenotypes
@@ -200,7 +202,6 @@ server <- function(input, output, session) {
     i = info$row
     j = info$col
     v = info$value
-    # browser()
     exposom$ctd_exp[i, 1] <<- DT::coerceValue(v, as.character(data.table(Chemicals = exposom$ctd_exp[i, 1])))
     replaceData(proxy, exposom$ctd_exp, resetPaging = FALSE)
   })
@@ -239,6 +240,23 @@ server <- function(input, output, session) {
     output$download_lod_data <- renderUI({
       downloadButton('download_lod', label = "Download LOD imputed exposures.csv")
     })
+    
+    write.csv(exposom$exposures_values, "temp/lod_temp.csv", row.names=FALSE)
+    files$exposures <- "temp/lod_temp.csv"
+    exposom$exp <- readExposome(exposures = files$exposures, description = files$description, 
+                                phenotype = files$phenotypes, exposures.samCol = "idnum", 
+                                description.expCol = "Exposure", 
+                                description.famCol = "Family", phenotype.samCol = "idnum")
+    exposom$exp_std <- standardize(exposom$exp, method = "normal")
+    exposom$exp_pca <- pca(exposom$exp_std)
+    exposom$nm <- normalityTest(exposom$exp)
+    exposom$nm[,3] <- as.numeric(formatC(exposom$nm[,3], format = "e", digits = 2))
+    exposom$normal_false <- as.data.table(exposom$nm)[normality == FALSE]
+    exposom$normal_false[, normality := NULL]
+    exposom$normal_false[, p.value := NULL]
+    exposom$normal_false[, Method := "log"]
+    exposom$normal_false <- as.data.frame(exposom$normal_false)
+    #file.remove("lod_temp.csv")
   })
   output$eb_family_ui <- renderUI({
     selectInput("family", "Choose a family:",
@@ -306,6 +324,11 @@ server <- function(input, output, session) {
         shinyalert("Oops!", "An invalid normalizing method was introduced.", type = "error")
       }
     })
+    exposom$normal_false <- as.data.table(exposom$nm)[normality == FALSE]
+    exposom$normal_false[, normality := NULL]
+    exposom$normal_false[, p.value := NULL]
+    exposom$normal_false[, Method := "log"]
+    exposom$normal_false <- as.data.frame(exposom$normal_false)
     info_messages$normality_status <- 100
   })
   
@@ -360,6 +383,12 @@ server <- function(input, output, session) {
       exposom$exp_std <- standardize(exposom$exp, method = "normal")
       exposom$exp_pca <- pca(exposom$exp_std)
       exposom$nm <- normalityTest(exposom$exp)
+      exposom$nm[,3] <- as.numeric(formatC(exposom$nm[,3], format = "e", digits = 2))
+      exposom$normal_false <- as.data.table(exposom$nm)[normality == FALSE]
+      exposom$normal_false[, normality := NULL]
+      exposom$normal_false[, p.value := NULL]
+      exposom$normal_false[, Method := "log"]
+      exposom$normal_false <- as.data.frame(exposom$normal_false)
       
       output$download_imputed_set <- renderUI({
         downloadButton('download_impset', label = "Download first imputed exposures set")
@@ -376,7 +405,7 @@ server <- function(input, output, session) {
                 exposom_lists$exposure_names, multiple = TRUE)
   })
   observeEvent(input$stop, {
-    browser()
+   
     chr_name <- input$chr_name
     start_name <- input$start_name
     end_name <- input$end_name
@@ -474,12 +503,11 @@ server <- function(input, output, session) {
       incProgress(0.5)
       #save(list = c("exposom", "files", "exposom_lists", "omics", "info_messages", "ctd_d"), 
       #     file = paste0(Sys.Date(), "environment.RData"))
-      browser()
+
       save(exposom$exp_pca, file = "prova.RData")
     })
   })
   observeEvent(input$environment_load, {
-    browser()
     env_file <- input$environment
     env_path <- env_file$datapath
     load(env_path)

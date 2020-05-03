@@ -6,7 +6,6 @@ library(MultiDataSet)
 library(mice)
 library(DT)
 library(ggplot2)
-library(ggiraph)
 library(data.table)
 library(truncdist)
 library(shinyalert)
@@ -154,7 +153,7 @@ body <- dashboardBody(
     tabItem(tabName = "cluster_exposures",
             tabPanel('Cluster Exposures',
                      downloadButton("ind_clustering_down", "Download plot"),
-                     plotOutput("ind_clustering", width = "100%")
+                     plotOutput("ind_clustering", height =  "800px")
             )
     ),
     tabItem(tabName = "n_exwas",
@@ -185,8 +184,8 @@ body <- dashboardBody(
                               actionButton("stop_exwas", "Add to querier"),
                               h3("Querier:"),
                               dataTableOutput("selected_symbols_exwas"),
-                              actionButton("ctd_query_exwas", "Query on the CTD gene database"),
-                              actionButton("remove_symbols_exwas", "Remove from querier")
+                              actionButton("remove_symbols_exwas", "Remove from querier"),
+                              actionButton("ctd_query_exwas", "Query on the CTD gene database")
                        )
                      ),
             )
@@ -308,6 +307,7 @@ body <- dashboardBody(
                          column(
                            width = 12,
                            h3("Volcan plot:"),
+                           downloadButton("volcanoPlot_down", "Download plot"),
                            plotOutput("volcanoPlot", click = "volcanoPlotSelection", height = "300px")
                          )
                        ),
