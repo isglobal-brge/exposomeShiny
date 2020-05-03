@@ -144,3 +144,11 @@ output$go_ctd_down <- downloadHandler(
     ggsave(file, plot = last_plot(), device = 'png')
   }
 )
+output$volcanoPlot_down <- downloadHandler(
+  filename = function(){
+    paste('volcan_plot', '.png', sep = '')
+  },
+  content = function(file){
+    ggsave(file, plot = last_plot(), device = 'png')
+  }
+)
