@@ -152,3 +152,11 @@ output$volcanoPlot_down <- downloadHandler(
     ggsave(file, plot = last_plot(), device = 'png')
   }
 )
+output$qqplot_down <- downloadHandler(
+  filename = function(){
+    paste('qq_plot', '.png', sep = '')
+  },
+  content = function(file){
+    ggsave(file, plot = last_plot(), device = 'png')
+  }
+)

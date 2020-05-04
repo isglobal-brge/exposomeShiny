@@ -204,10 +204,12 @@ output$qqplot <- renderPlot({
     #ggplot2::ggtitle("Transcriptome - Pb Association")
 })
 output$volcanoPlot <- renderPlot({
-  pvalues <- omics$aux$P.Value
-  logfc <- omics$aux$logFC
-  names <- rownames(omics$aux)
-  volcano_plot_inter(pvalues, logfc, names)
+  # pvalues <- omics$aux$P.Value
+  # logfc <- omics$aux$logFC
+  # names <- rownames(omics$aux)
+  # volcano_plot_inter(pvalues, logfc, names)
+  rid_i <- input$volcan_rid_select_input
+  plotAssociation(omics$gexp, rid = rid_i, type="volcano", tPV=input$pval_tres, tFC = input$logfold_tres)
 })
 output$ctd_lost_found <- renderPlot({
   plot(ctd_d$ctd_query) + ggtitle( "Lost & Found Genes" )

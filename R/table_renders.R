@@ -24,9 +24,9 @@ output$ass_vis_results_table_bs_dt <- renderDT(round(omics$aux, digits = 2),
                                       options=list(columnDefs = list(list(visible=FALSE,
                                       targets=c(2,3,4,5,8,9)))))
 output$selectedProbesTable <- renderDataTable(
-  cbind(round(omics$aux[nearPoints(omics$dta, input$volcanoPlotSelection)$name,], digits = 2), fData(omics$gexp)$expression[nearPoints(omics$dta, input$volcanoPlotSelection)$name,c(input$start_name, input$end_name, input$chr_name)]), selection = "single", 
-  class = 'cell-border stripe', options=list(searching = FALSE, columnDefs = list(list(visible=FALSE,
-  targets=c(0, 2, 3, 4, 5, 8, 9))))
+  nearPoints(data.table(name = rownames(omics$aux), logFC = round(omics$aux$logFC, digits = 2), P.Value = round(-log10(omics$aux$P.Value), digits = 2)), input$volcanoPlotSelection, xvar = "logFC", yvar = "P.Value"),  
+  selection = "single", class = 'cell-border stripe', options=list(searching = FALSE, columnDefs = list(list(visible=FALSE,
+                                                                                                             targets=c(0))))
 )
 output$selectedProbesTable_exwas <- renderDataTable(
   data.frame(Chemical = tryCatch({input$exwas_asPlotSelection$domain$discrete_limits$y[[round(input$exwas_asPlotSelection$y)]]}, 
