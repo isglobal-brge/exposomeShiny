@@ -14,6 +14,7 @@ library(TxDb.Hsapiens.UCSC.hg19.knownGene)
 library(org.Hs.eg.db)
 library(GenomicRanges)
 library(CTDquerier)
+library(shinycssloaders)
 
 ## ui.R ##
 sidebar <- dashboardSidebar(
@@ -94,7 +95,7 @@ body <- dashboardBody(
                      downloadButton("missPlot_down", "Download plot"),
                      actionButton("impute_missings", "Impute missing values using mice"),
                      uiOutput("download_imputed_set"),
-                     plotOutput("missPlot", height = "1000px")
+                     withSpinner(plotOutput("missPlot", height = "1000px"))
                      #uiOutput("download_imputed_set_rdata") #ACABAR IMPLEMENTACIO CORRECTAMENT AL server.R
             )
     ),
@@ -104,7 +105,7 @@ body <- dashboardBody(
                      actionButton(inputId = "exp_norm_plot_button",
                                   label = "Plot histogram of selected exposure"),
                      bsModal("hist", "", "exp_norm_plot_button", size = "large",
-                             plotOutput("exp_normality_graph")),
+                             withSpinner(plotOutput("exp_normality_graph"))),
                      actionButton("normal_false_table", "Show false"),
                      bsModal("normal_false", "", "normal_false_table", size = "large",
                               DTOutput("exp_normality_false"), 
@@ -118,7 +119,7 @@ body <- dashboardBody(
                      uiOutput("eb_group1_ui"),
                      uiOutput("eb_group2_ui"),
                      downloadButton("exp_behaviour_down", "Download plot"),
-                     plotOutput("exp_behaviour")
+                     withSpinner(plotOutput("exp_behaviour"))
             )
     ),
     tabItem(tabName = "pca_visualization",
@@ -127,7 +128,7 @@ body <- dashboardBody(
                                  list("all", "samples", "exposures"), selected = "all"),
                      uiOutput("pca_group1_ui"),
                      downloadButton("exp_pca_down", "Download plot"),
-                     plotOutput("exp_pca", height = "700px")
+                     withSpinner(plotOutput("exp_pca", height = "700px"))
             )
     ),
     tabItem(tabName = "pca_association_with_exposures",
@@ -137,7 +138,7 @@ body <- dashboardBody(
                                       "Phenotypes to the principal components"),
                                  selected = "Exposures to the principal components"),
                      downloadButton("exp_association_down", "Download plot"),
-                     plotOutput("exp_association", height = "600px")
+                     withSpinner(plotOutput("exp_association", height = "600px"))
             )
     ),
     tabItem(tabName = "exposure_correlation",
@@ -147,13 +148,13 @@ body <- dashboardBody(
                                       "Circos plot"),
                                  selected = "Matrix"),
                      downloadButton("exp_correlation_down", "Download plot"),
-                     plotOutput("exp_correlation", height = '800px')
+                     withSpinner(plotOutput("exp_correlation", height = '800px'))
             )
     ),
     tabItem(tabName = "cluster_exposures",
             tabPanel('Cluster Exposures',
                      downloadButton("ind_clustering_down", "Download plot"),
-                     plotOutput("ind_clustering", height =  "800px")
+                     withSpinner(plotOutput("ind_clustering", height =  "800px"))
             )
     ),
     tabItem(tabName = "n_exwas",
@@ -175,7 +176,7 @@ body <- dashboardBody(
                      fluidRow(
                        column(8,
                               textOutput("exwas_effect"),
-                              plotOutput("exwas_as", click = "exwas_asPlotSelection", height = "700px"),
+                              withSpinner(plotOutput("exwas_as", click = "exwas_asPlotSelection", height = "700px")),
                               downloadButton("exwas_as_down", "Download plot")
                        ),
                        column(4,
@@ -195,29 +196,29 @@ body <- dashboardBody(
               tabBox(width = 12,
                      tabPanel("Gene interactions",
                               numericInput("gene_inter_ctd_filter", "Choose the filter score: ", min = 0, value = 5),
-                              plotOutput("gene_inter_ctd"),
+                              withSpinner(plotOutput("gene_inter_ctd")),
                               downloadButton("gene_inter_ctd_down", "Download plot")
                               
                      ),
                      tabPanel("Gen-Chemical interactions", 
                               numericInput("gene_chem_inter_ctd_filter", "Choose the filter score: ", min = 0, value = 3),
-                              plotOutput("gene_chem_inter_ctd"),
+                              withSpinner(plotOutput("gene_chem_inter_ctd")),
                               downloadButton("gene_chem_inter_ctd_down", "Download plot")
                               
                      ),
                      tabPanel("Disease",
-                              plotOutput("disease_ctd"),
+                              withSpinner(plotOutput("disease_ctd")),
                               downloadButton("disease_ctd_down", "Download plot")
                               
                      ),
                      tabPanel("Kegg pathways",
                               numericInput("kegg_ctd_filter", "Choose the filter score: [1E-X]", min = 0, value = 10),
-                              plotOutput("kegg_ctd"),
+                              withSpinner(plotOutput("kegg_ctd")),
                               downloadButton("kegg_ctd_down", "Download plot")
                      ),
                      tabPanel("Go terms",
                               numericInput("go_ctd_filter", "Choose the filter score: [1E-X]", min = 0, value = 10),
-                              plotOutput("go_ctd"),
+                              withSpinner(plotOutput("go_ctd")),
                               downloadButton("go_ctd_down", "Download plot")
                      )
               )
@@ -230,7 +231,7 @@ body <- dashboardBody(
                      actionButton("mexwas_plot", "Run model"),
                      bsModal("mexwas", "", "mexwas_plot", size = "large",
                              downloadButton("mea_down", "Download plot"),
-                             plotOutput("mea", height = "700px"))
+                             withSpinner(plotOutput("mea", height = "700px")))
             )
     ),
     tabItem(tabName = "omic_data_entry",
@@ -267,7 +268,8 @@ body <- dashboardBody(
                        ),
               tabPanel("QQ Plot",
                        uiOutput("qq_rid_select"),
-                       plotOutput("qqplot")
+                       downloadButton("qqplot_down", "Download plot"),
+                       withSpinner(plotOutput("qqplot"))
                        ),
               tabPanel("Volcan plot",
                        fluidRow(
@@ -307,8 +309,9 @@ body <- dashboardBody(
                          column(
                            width = 12,
                            h3("Volcan plot:"),
+                           uiOutput("volcan_rid_select"),
                            downloadButton("volcanoPlot_down", "Download plot"),
-                           plotOutput("volcanoPlot", click = "volcanoPlotSelection", height = "300px")
+                           withSpinner(plotOutput("volcanoPlot", click = "volcanoPlotSelection", height = "300px"))
                          )
                        ),
                        fluidRow(
@@ -329,7 +332,7 @@ body <- dashboardBody(
     tabItem(tabName = "CTDquerier_res",
             tabBox(width = 12,
                    tabPanel("Lost & found",
-                            plotOutput("ctd_lost_found"),
+                            withSpinner(plotOutput("ctd_lost_found")),
                             h3("Found genes:"),
                             verbatimTextOutput("found_genes"),
                             h3("Lost genes:"),
@@ -351,13 +354,13 @@ body <- dashboardBody(
                    tabPanel("Inference Score",
                             uiOutput("inf_score_selector"),
                             numericInput("f.sco", "Choose the filter score: ", min = 0, value = 20),
-                            plotOutput("ctd_inference_score"),
-                            downloadButton("inf_down", "Download plot")
+                            downloadButton("inf_down", "Download plot"),
+                            withSpinner(plotOutput("ctd_inference_score"))
                    ),
                    tabPanel("Association Matrix",
                             numericInput("f.sco_matrix", "Choose the filter score: ", min = 0, value = 20),
-                            plotOutput("ass_matrix_ctd"),
-                            downloadButton("assm_down", "Download plot")
+                            downloadButton("assm_down", "Download plot"),
+                            withSpinner(plotOutput("ass_matrix_ctd"))
                    )
                    )
             )
