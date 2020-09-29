@@ -119,6 +119,10 @@ server <- function(input, output, session) {
     selectInput("qq_rid_select_input", "Select the exposure to plot:",
                 exposom_lists$exposure_class)
   })
+  output$volcan_rid_select <- renderUI({
+    selectInput("volcan_rid_select_input", "Select the exposure to plot:",
+                exposom_lists$exposure_class)
+  })
   observeEvent(input$data_load, {
 
     description_file <- input$description
@@ -418,7 +422,10 @@ server <- function(input, output, session) {
 ", type = "error")
     }
     else {
-      gene <- nearPoints(omics$dta, input$volcanoPlotSelection)[row_interest,]$names
+      gene <- nearPoints(data.table(name = rownames(omics$aux), logFC = round(omics$aux$logFC, digits = 2), 
+                                    P.Value = round(-log10(omics$aux$P.Value), digits = 2)), 
+                         input$volcanoPlotSelection, xvar = "logFC", yvar = "P.Value")[row_interest,]$name
+      # gene <- nearPoints(omics$dta, input$volcanoPlotSelection)[row_interest,]$names
       gg <- genes(TxDb.Hsapiens.UCSC.hg19.knownGene)
       chr_query <- paste0("as.data.table(fData(omics$gexp)$expression)[probeset_id == gene]$", chr_name)
       start_query <- paste0("as.data.table(fData(omics$gexp)$expression)[probeset_id == gene]$", start_name)

@@ -48,7 +48,7 @@ output$ind_clustering <- renderPlot({
     cutree(result, k = 3)
   }
   exp_c <- clustering(exposom$exp, method = hclust_data, cmethod = hclust_k3)
-  plotClassification(exp_c)
+  plotClassification(exp_c, type = "valuemap", family = "all")
 })
 output$exp_association <- renderPlot({
   if (input$ass_choice == "Exposures to the principal components") {
@@ -204,12 +204,10 @@ output$qqplot <- renderPlot({
     #ggplot2::ggtitle("Transcriptome - Pb Association")
 })
 output$volcanoPlot <- renderPlot({
-  # pvalues <- omics$aux$P.Value
-  # logfc <- omics$aux$logFC
-  # names <- rownames(omics$aux)
-  # volcano_plot_inter(pvalues, logfc, names)
-  rid_i <- input$volcan_rid_select_input
-  plotAssociation(omics$gexp, rid = rid_i, type="volcano", tPV=input$pval_tres, tFC = input$logfold_tres)
+  pvalues <- omics$aux$P.Value
+  logfc <- omics$aux$logFC
+  names <- rownames(omics$aux)
+  volcano_plot_inter(pvalues, logfc, names)
 })
 output$ctd_lost_found <- renderPlot({
   plot(ctd_d$ctd_query) + ggtitle( "Lost & Found Genes" )

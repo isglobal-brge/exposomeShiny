@@ -361,6 +361,7 @@ body <- dashboardBody(
                             numericInput("f.sco_matrix", "Choose the filter score: ", min = 0, value = 20),
                             downloadButton("assm_down", "Download plot"),
                             withSpinner(plotOutput("ass_matrix_ctd"))
+                            
                    )
                    )
             )
