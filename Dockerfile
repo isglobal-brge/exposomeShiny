@@ -48,6 +48,7 @@ RUN R -e "devtools::install_version('shinyalert', version = '1.0', repos = 'http
 RUN R -e "devtools::install_version('shinydashboard', version = '0.7.1', repos = 'http://cran.us.r-project.org')"
 RUN R -e "devtools::install_version('shinycssloaders', version = '0.3', repos = 'http://cran.us.r-project.org')"
 RUN R -e "devtools::install_version('BiocManager', version = '1.30.10', repos = 'http://cran.us.r-project.org')"
+RUN R -e "devtools::install_version('shinyjs', version = '2.0.0', repos = 'http://cran.us.r-project.org')"
 # RUN R -e "devtools::install_version('jpeg', version = '0.1-8.1', repos = 'http://cran.us.r-project.org')"
 RUN R -e "BiocManager::install('rexposome')"
 RUN R -e "BiocManager::install('omicRexposome')"

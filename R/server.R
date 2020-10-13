@@ -11,7 +11,8 @@ server <- function(input, output, session) {
   files <- reactiveValues(description = NULL, phenotypes = NULL, exposures = NULL)
   exposom_lists <- reactiveValues(phenotypes_list = NULL, phenotypes_list_og = NULL, 
                                   exposure_names = NULL, exposure_names_withall = NULL,
-                                  exposure_class = NULL, subset_list = NULL, model_list = NULL)
+                                  exposure_class = NULL, subset_list = NULL, model_list = NULL,
+                                  description_cols = NULL, exposures_cols = NULL, phenotypes_cols = NULL)
   omics <- reactiveValues(multi = NULL, omic_file = NULL, hit_lam_table = NULL, 
                           results_table = NULL, gexp = NULL, aux = NULL, dta = NULL)
   info_messages <- reactiveValues(messageData = NULL, exp_status = 0, omic_status = 0,
@@ -123,8 +124,28 @@ server <- function(input, output, session) {
     selectInput("volcan_rid_select_input", "Select the exposure to plot:",
                 exposom_lists$exposure_class)
   })
+  observeEvent(input$data_columns_read, {
+    exposom_lists$description_cols <- colnames(fread(input$description$datapath))
+    exposom_lists$exposures_cols <- colnames(fread(input$exposures$datapath))
+    exposom_lists$phenotypes_cols <- colnames(fread(input$phenotypes$datapath))
+    toggle("data_columns_read")
+    toggle("data_load")
+    
+    output$description.expCol.tag.ui <- renderUI({
+      selectInput("description.expCol.tag", "Select column of 'description' that contains the exposures", exposom_lists$description_cols)
+    })
+    output$description.famCol.tag.ui <- renderUI({
+      selectInput("description.famCol.tag", "Select column of 'description' that contains the families", exposom_lists$description_cols)
+    })
+    output$exposures.samCol.tag.ui <- renderUI({
+      selectInput("exposures.samCol.tag", "Select column of 'exposures' that contains the id's", exposom_lists$exposures_cols)
+    })
+    output$phenotype.samCol.tag.ui <- renderUI({
+      selectInput("phenotype.samCol.tag", "Select column of 'phenotyes' that contains the id's", exposom_lists$phenotypes_cols)
+    })
+  })
+  
   observeEvent(input$data_load, {
-
     description_file <- input$description
     files$description <- description_file$datapath
     phenotypes_file <- input$phenotypes
@@ -132,13 +153,11 @@ server <- function(input, output, session) {
     exposures_file <- input$exposures
     files$exposures <- exposures_file$datapath
     
-    
-    tryCatch({
-      withProgress(message = 'Loading the selected data', value = 0, {
+    withProgress(message = 'Loading the selected data', value = 0, {
       exposom$exp <- readExposome(exposures = files$exposures, description = files$description, 
-                                          phenotype = files$phenotypes, exposures.samCol = input$exposures.samCol.tag, 
-                                          description.expCol = input$description.expCol.tag, 
-                                          description.famCol = input$description.famCol.tag, phenotype.samCol = input$phenotype.samCol.tag)
+                                  phenotype = files$phenotypes, exposures.samCol = input$exposures.samCol.tag, 
+                                  description.expCol = input$description.expCol.tag, 
+                                  description.famCol = input$description.famCol.tag, phenotype.samCol = input$phenotype.samCol.tag)
       incProgress(0.2)
       exposom$exp_std <- standardize(exposom$exp, method = "normal")
       incProgress(0.4)
@@ -151,43 +170,39 @@ server <- function(input, output, session) {
       exposom$normal_false[, p.value := NULL]
       exposom$normal_false[, Method := "log"]
       exposom$normal_false <- as.data.frame(exposom$normal_false)
+    })
+    exposom_lists$phenotypes_list_og <- as.list(phenotypeNames(exposom$exp))
+    exposom_lists$phenotypes_list <- append(exposom_lists$phenotypes_list_og,
+                                            'None', after = 0)
+    exposom_lists$exposure_names <- as.list(familyNames(exposom$exp))
+    exposom_lists$exposure_names_withall <- append(exposom_lists$exposure_names,
+                                                   'All', after = 0)
+    exposom$exposures_values <- as.data.table(read.csv(files$exposures))
+    description_values <- read.csv(files$description)
+    exposom$lod_candidates <- unique(as.list(as.character(description_values[which(exposom$exposures_values == -1,
+                                                                                   arr.ind = TRUE)[,2] - 1,2])))
+    
+    exposom$lod_candidates_index <- which(exposom$exposures_values == -1, arr.ind = TRUE)
+    if (length(exposom$lod_candidates) != 0) {
+      output$lod_help <- renderUI({
+        actionButton("lod_help_button", "Help about the LOD substitution")
       })
-      exposom_lists$phenotypes_list_og <- as.list(phenotypeNames(exposom$exp))
-      exposom_lists$phenotypes_list <- append(exposom_lists$phenotypes_list_og,
-                                              'None', after = 0)
-      exposom_lists$exposure_names <- as.list(familyNames(exposom$exp))
-      exposom_lists$exposure_names_withall <- append(exposom_lists$exposure_names,
-                                                     'All', after = 0)
-      exposom$exposures_values <- as.data.table(read.csv(files$exposures))
-      description_values <- read.csv(files$description)
-      exposom$lod_candidates <- unique(as.list(as.character(description_values[which(exposom$exposures_values == -1,
-                                                                                     arr.ind = TRUE)[,2] - 1,2])))
-      
-      exposom$lod_candidates_index <- which(exposom$exposures_values == -1, arr.ind = TRUE)
-      if (length(exposom$lod_candidates) != 0) {
-        output$lod_help <- renderUI({
-          actionButton("lod_help_button", "Help about the LOD substitution")
-        })
-        exposom$lod_candidates <- data.frame(matrix(unlist(exposom$lod_candidates)), seq(1,length(exposom$lod_candidates)))
-        colnames(exposom$lod_candidates) <- c("Exposure","LOD")
-        transform(exposom$lod_candidates, LOD = as.numeric(LOD))
-        output$dl_lodtable_ui <- renderUI({
-          DTOutput("lod_data_entry_table", width = "60%")
-        })
-        output$lod_imputation_type <- renderUI({
-          selectInput("lod_imputation_type_input", "Choose imputation method: ",
-                      list("LOD/sqrt(2)", "Random imputation"))
-        })
-        output$lod_substitution <- renderUI({
-          actionButton("lod_substitution_input", "Perform LOD imputation with the values provided")
-        })
-      }
-      info_messages$exp_status <- 100
-      info_messages$exp_hue <- "green"
-    }, 
-     error = function(w){
-       shinyalert("Loading error", "Check the file structures are correct + check the introduced column names are correct.", type = "error")
-     })
+      exposom$lod_candidates <- data.frame(matrix(unlist(exposom$lod_candidates)), seq(1,length(exposom$lod_candidates)))
+      colnames(exposom$lod_candidates) <- c("Exposure","LOD")
+      transform(exposom$lod_candidates, LOD = as.numeric(LOD))
+      output$dl_lodtable_ui <- renderUI({
+        DTOutput("lod_data_entry_table", width = "60%")
+      })
+      output$lod_imputation_type <- renderUI({
+        selectInput("lod_imputation_type_input", "Choose imputation method: ",
+                    list("LOD/sqrt(2)", "Random imputation"))
+      })
+      output$lod_substitution <- renderUI({
+        actionButton("lod_substitution_input", "Perform LOD imputation with the values provided")
+      })
+    }
+    info_messages$exp_status <- 100
+    info_messages$exp_hue <- "green"
   })
   observeEvent(input$lod_help_button, {
     shinyalert("LOD imputation info", "

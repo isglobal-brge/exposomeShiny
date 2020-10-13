@@ -10,6 +10,7 @@ library(data.table)
 library(truncdist)
 library(shinyalert)
 library(shinydashboard)
+library(shinyjs)
 library(TxDb.Hsapiens.UCSC.hg19.knownGene)
 library(org.Hs.eg.db)
 library(GenomicRanges)
@@ -53,6 +54,7 @@ sidebar <- dashboardSidebar(
 )
 
 body <- dashboardBody(
+  useShinyjs(),
   tabItems(
     tabItem(tabName = "data_entry",
             tabPanel('Data entry',
@@ -64,6 +66,7 @@ body <- dashboardBody(
                                           "text/comma-separated-values,text/plain",
                                           ".csv")
                               ),
+                              
                               fileInput("description", "Choose description CSV File",
                                         accept = c(
                                           "text/csv",
@@ -76,13 +79,14 @@ body <- dashboardBody(
                                           "text/comma-separated-values,text/plain",
                                           ".csv")
                               ),
-                              actionButton("data_load", "Load data"),
+                              actionButton("data_columns_read", "Read tables"),
+                              hidden(actionButton("data_load", "Select columns"))
                        ),
                        column(6,
-                              textInput("description.expCol.tag", "Exposure names column (in 'description' file)"),
-                              textInput("description.famCol.tag", "Family names column (in 'description' file)"),
-                              textInput("exposures.samCol.tag", "Samples names column (in 'exposures' file)"),
-                              textInput("phenotype.samCol.tag", "Samples names column (in 'phenotypes' file)"),
+                              uiOutput("exposures.samCol.tag.ui"),
+                              uiOutput("phenotype.samCol.tag.ui"),
+                              uiOutput("description.expCol.tag.ui"),
+                              uiOutput("description.famCol.tag.ui"),
                               ),
                        uiOutput("dl_lodtable_ui", align = "center"),
                        uiOutput("lod_help", align = "center"),
