@@ -132,56 +132,62 @@ server <- function(input, output, session) {
     exposures_file <- input$exposures
     files$exposures <- exposures_file$datapath
     
-    withProgress(message = 'Loading the selected data', value = 0, {
-    exposom$exp <- readExposome(exposures = files$exposures, description = files$description, 
-                        phenotype = files$phenotypes, exposures.samCol = "idnum", 
-                        description.expCol = "Exposure", 
-                        description.famCol = "Family", phenotype.samCol = "idnum")
-    incProgress(0.2)
-    exposom$exp_std <- standardize(exposom$exp, method = "normal")
-    incProgress(0.4)
-    exposom$exp_pca <- pca(exposom$exp_std)
-    incProgress(0.7)
-    exposom$nm <- normalityTest(exposom$exp)
-    exposom$nm[,3] <- as.numeric(formatC(exposom$nm[,3], format = "e", digits = 2))
-    exposom$normal_false <- as.data.table(exposom$nm)[normality == FALSE]
-    exposom$normal_false[, normality := NULL]
-    exposom$normal_false[, p.value := NULL]
-    exposom$normal_false[, Method := "log"]
-    exposom$normal_false <- as.data.frame(exposom$normal_false)
-    })
-    exposom_lists$phenotypes_list_og <- as.list(phenotypeNames(exposom$exp))
-    exposom_lists$phenotypes_list <- append(exposom_lists$phenotypes_list_og,
-                                             'None', after = 0)
-    exposom_lists$exposure_names <- as.list(familyNames(exposom$exp))
-    exposom_lists$exposure_names_withall <- append(exposom_lists$exposure_names,
-                                                   'All', after = 0)
-    exposom$exposures_values <- as.data.table(read.csv(files$exposures))
-    description_values <- read.csv(files$description)
-    exposom$lod_candidates <- unique(as.list(as.character(description_values[which(exposom$exposures_values == -1,
-                                                                                   arr.ind = TRUE)[,2] - 1,2])))
     
-    exposom$lod_candidates_index <- which(exposom$exposures_values == -1, arr.ind = TRUE)
-    if (length(exposom$lod_candidates) != 0) {
-      output$lod_help <- renderUI({
-        actionButton("lod_help_button", "Help about the LOD substitution")
+    tryCatch({
+      withProgress(message = 'Loading the selected data', value = 0, {
+      exposom$exp <- readExposome(exposures = files$exposures, description = files$description, 
+                                          phenotype = files$phenotypes, exposures.samCol = input$exposures.samCol.tag, 
+                                          description.expCol = input$description.expCol.tag, 
+                                          description.famCol = input$description.famCol.tag, phenotype.samCol = input$phenotype.samCol.tag)
+      incProgress(0.2)
+      exposom$exp_std <- standardize(exposom$exp, method = "normal")
+      incProgress(0.4)
+      exposom$exp_pca <- pca(exposom$exp_std)
+      incProgress(0.7)
+      exposom$nm <- normalityTest(exposom$exp)
+      exposom$nm[,3] <- as.numeric(formatC(exposom$nm[,3], format = "e", digits = 2))
+      exposom$normal_false <- as.data.table(exposom$nm)[normality == FALSE]
+      exposom$normal_false[, normality := NULL]
+      exposom$normal_false[, p.value := NULL]
+      exposom$normal_false[, Method := "log"]
+      exposom$normal_false <- as.data.frame(exposom$normal_false)
       })
-      exposom$lod_candidates <- data.frame(matrix(unlist(exposom$lod_candidates)), seq(1,length(exposom$lod_candidates)))
-      colnames(exposom$lod_candidates) <- c("Exposure","LOD")
-      transform(exposom$lod_candidates, LOD = as.numeric(LOD))
-      output$dl_lodtable_ui <- renderUI({
-        DTOutput("lod_data_entry_table", width = "60%")
-    })
-      output$lod_imputation_type <- renderUI({
-        selectInput("lod_imputation_type_input", "Choose imputation method: ",
-                    list("LOD/sqrt(2)", "Random imputation"))
-      })
-      output$lod_substitution <- renderUI({
-        actionButton("lod_substitution_input", "Perform LOD imputation with the values provided")
-      })
-    }
-    info_messages$exp_status <- 100
-    info_messages$exp_hue <- "green"
+      exposom_lists$phenotypes_list_og <- as.list(phenotypeNames(exposom$exp))
+      exposom_lists$phenotypes_list <- append(exposom_lists$phenotypes_list_og,
+                                              'None', after = 0)
+      exposom_lists$exposure_names <- as.list(familyNames(exposom$exp))
+      exposom_lists$exposure_names_withall <- append(exposom_lists$exposure_names,
+                                                     'All', after = 0)
+      exposom$exposures_values <- as.data.table(read.csv(files$exposures))
+      description_values <- read.csv(files$description)
+      exposom$lod_candidates <- unique(as.list(as.character(description_values[which(exposom$exposures_values == -1,
+                                                                                     arr.ind = TRUE)[,2] - 1,2])))
+      
+      exposom$lod_candidates_index <- which(exposom$exposures_values == -1, arr.ind = TRUE)
+      if (length(exposom$lod_candidates) != 0) {
+        output$lod_help <- renderUI({
+          actionButton("lod_help_button", "Help about the LOD substitution")
+        })
+        exposom$lod_candidates <- data.frame(matrix(unlist(exposom$lod_candidates)), seq(1,length(exposom$lod_candidates)))
+        colnames(exposom$lod_candidates) <- c("Exposure","LOD")
+        transform(exposom$lod_candidates, LOD = as.numeric(LOD))
+        output$dl_lodtable_ui <- renderUI({
+          DTOutput("lod_data_entry_table", width = "60%")
+        })
+        output$lod_imputation_type <- renderUI({
+          selectInput("lod_imputation_type_input", "Choose imputation method: ",
+                      list("LOD/sqrt(2)", "Random imputation"))
+        })
+        output$lod_substitution <- renderUI({
+          actionButton("lod_substitution_input", "Perform LOD imputation with the values provided")
+        })
+      }
+      info_messages$exp_status <- 100
+      info_messages$exp_hue <- "green"
+    }, 
+     error = function(w){
+       shinyalert("Loading error", "Check the file structures are correct + check the introduced column names are correct.", type = "error")
+     })
   })
   observeEvent(input$lod_help_button, {
     shinyalert("LOD imputation info", "
@@ -245,12 +251,12 @@ server <- function(input, output, session) {
       downloadButton('download_lod', label = "Download LOD imputed exposures.csv")
     })
     
-    write.csv(exposom$exposures_values, "temp/lod_temp.csv", row.names=FALSE)
-    files$exposures <- "temp/lod_temp.csv"
+    write.csv(exposom$exposures_values, file = "../temp/lod_temp.csv", row.names=FALSE)
+    files$exposures <- "../temp/lod_temp.csv"
     exposom$exp <- readExposome(exposures = files$exposures, description = files$description, 
-                                phenotype = files$phenotypes, exposures.samCol = "idnum", 
-                                description.expCol = "Exposure", 
-                                description.famCol = "Family", phenotype.samCol = "idnum")
+                                phenotype = files$phenotypes, exposures.samCol = input$exposures.samCol.tag, 
+                                description.expCol = input$description.expCol.tag, 
+                                description.famCol = input$description.famCol.tag, phenotype.samCol = input$phenotype.samCol.tag)
     exposom$exp_std <- standardize(exposom$exp, method = "normal")
     exposom$exp_pca <- pca(exposom$exp_std)
     exposom$nm <- normalityTest(exposom$exp)
@@ -380,8 +386,8 @@ server <- function(input, output, session) {
       }
       
       exposom$exp_imp <- loadImputed(data = me, description = dd, 
-                            description.famCol = "Family", 
-                            description.expCol = "Exposure")
+                            description.famCol = input$description.famCol.tag, 
+                            description.expCol = input$description.expCol.tag)
       ex_1 <- toES(exposom$exp_imp, rid = 1)
       exposom$exp <- ex_1
       exposom$exp_std <- standardize(exposom$exp, method = "normal")

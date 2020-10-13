@@ -77,10 +77,13 @@ body <- dashboardBody(
                                           ".csv")
                               ),
                               actionButton("data_load", "Load data"),
-                              # tags$hr(style="border-color: black;"),
-                              # fileInput("environment", "Load rexposomeShiny environment"),
-                              # actionButton("environment_load", "Load environment")
                        ),
+                       column(6,
+                              textInput("description.expCol.tag", "Exposure names column (in 'description' file)"),
+                              textInput("description.famCol.tag", "Family names column (in 'description' file)"),
+                              textInput("exposures.samCol.tag", "Samples names column (in 'exposures' file)"),
+                              textInput("phenotype.samCol.tag", "Samples names column (in 'phenotypes' file)"),
+                              ),
                        uiOutput("dl_lodtable_ui", align = "center"),
                        uiOutput("lod_help", align = "center"),
                        uiOutput("lod_imputation_type", align = "center"),
