@@ -3,7 +3,6 @@ FROM rocker/shiny-verse:3.6.1
 # system libraries of general use
  
 RUN apt-get update && apt-get install -y \
- 
     sudo \
     pandoc \
     pandoc-citeproc \
@@ -12,7 +11,8 @@ RUN apt-get update && apt-get install -y \
     libxt-dev \
     libssl-dev \
     libssh2-1-dev \
-    libjpeg-dev
+    libjpeg-dev \
+    libxml2 \
 
 # Install R Dependencies - installs the r packages you need - if this step fails you’re likely 
 # missing system libraries that a package requires
@@ -49,6 +49,7 @@ RUN R -e "devtools::install_version('shinydashboard', version = '0.7.1', repos =
 RUN R -e "devtools::install_version('shinycssloaders', version = '0.3', repos = 'http://cran.us.r-project.org')"
 RUN R -e "devtools::install_version('BiocManager', version = '1.30.10', repos = 'http://cran.us.r-project.org')"
 RUN R -e "devtools::install_version('shinyjs', version = '2.0.0', repos = 'http://cran.us.r-project.org')"
+RUN R -e "devtools::install_version('shinyWidgets', version = '0.5.4', repos = 'http://cran.us.r-project.org')"
 # RUN R -e "devtools::install_version('jpeg', version = '0.1-8.1', repos = 'http://cran.us.r-project.org')"
 RUN R -e "BiocManager::install('rexposome')"
 RUN R -e "BiocManager::install('omicRexposome')"

@@ -16,6 +16,7 @@ library(org.Hs.eg.db)
 library(GenomicRanges)
 library(CTDquerier)
 library(shinycssloaders)
+library(pastecs)
 
 ## ui.R ##
 sidebar <- dashboardSidebar(
@@ -24,6 +25,7 @@ sidebar <- dashboardSidebar(
     menuItem("Data entry", tabName = "data_entry", icon = icon("upload")),
     menuItem("Missing data", icon = icon("star-half-alt"), tabName = "missing_data",
                badgeColor = "green"),
+    menuItem("Exposure descriptive stats", tabName = "descriptive_stats_exposures", icon = icon("chart-bar")),
     menuItem("Check normality", icon = icon("chart-area"), tabName = "check_normality",
                badgeColor = "green"),
     menuItem("Exposures Description", icon = icon("drafting-compass"), tabName = "exposures_description",
@@ -79,14 +81,24 @@ body <- dashboardBody(
                                           "text/comma-separated-values,text/plain",
                                           ".csv")
                               ),
-                              actionButton("data_columns_read", "Read tables"),
-                              hidden(actionButton("data_load", "Select columns"))
+                              selectInput("data_separator", "Select the delimiter of the inputed files", c(",", ";", "Space(s)/Tabs/Newlines/Carriage returns")),
+                              h6("All files must use the same delimiter"),
+                              actionButton("data_columns_read", "Read files information"),
+                              hidden(selectInput("explore_tables_selected", "Table to explore", c("exposures", "description", "phenotypes"))),
+                              hidden(actionButton("explore_tables", "Explore selected table")),
+                              bsModal("explore_tbl", "", "explore_tables", size = "large",
+                                      DT::dataTableOutput("explore_data_render")),
+                              hr(),
+                              hidden(actionButton("data_load", "Load selected data to analyze it"))
                        ),
                        column(6,
-                              uiOutput("exposures.samCol.tag.ui"),
-                              uiOutput("phenotype.samCol.tag.ui"),
-                              uiOutput("description.expCol.tag.ui"),
-                              uiOutput("description.famCol.tag.ui"),
+                              hidden(uiOutput("exposures.samCol.tag.ui")),
+                              hidden(uiOutput("phenotype.samCol.tag.ui")),
+                              hidden(uiOutput("description.expCol.tag.ui")),
+                              hidden(uiOutput("description.famCol.tag.ui")),
+                              hidden(numericInput("factor_num", "The exposures with more than this number of unique items will be considered as 'continuous'", 5)),
+                              hidden(textInput("lod_encoding", "Select LOD enconding to search", "-1")),
+                              hidden(actionButton("data_check", "Validate selections"))
                               ),
                        uiOutput("dl_lodtable_ui", align = "center"),
                        uiOutput("lod_help", align = "center"),
@@ -94,6 +106,12 @@ body <- dashboardBody(
                        uiOutput("lod_substitution", align = "center"),
                        uiOutput("download_lod_data", align = "center")
                      )
+            )
+    ),
+    tabItem(tabName = "descriptive_stats_exposures",
+            tabPanel('Descriptive stats of the exposures',
+                     DTOutput("desc_stats"),
+                     downloadButton("desc_stats_down", "Download table")
             )
     ),
     
@@ -112,6 +130,7 @@ body <- dashboardBody(
                      actionButton(inputId = "exp_norm_plot_button",
                                   label = "Plot histogram of selected exposure"),
                      bsModal("hist", "", "exp_norm_plot_button", size = "large",
+                             selectInput("histogram_type", "Histogram type", c("Histogram","Histogram + Transformations")),
                              withSpinner(plotOutput("exp_normality_graph"))),
                      actionButton("normal_false_table", "Show false"),
                      bsModal("normal_false", "", "normal_false_table", size = "large",
@@ -131,9 +150,20 @@ body <- dashboardBody(
     ),
     tabItem(tabName = "pca_visualization",
             tabPanel('PCA Visualization',
-                     selectInput("pca_set", "Choose a set:",
-                                 list("all", "samples", "exposures"), selected = "all"),
-                     uiOutput("pca_group1_ui"),
+                     fluidRow(
+                       column(6,
+                              selectInput("pca_set", "Choose a set:",
+                                          list("all", "samples", "exposures"), selected = "all"),
+                              uiOutput("pca_group1_ui")
+                              ),
+                       column(6,
+                              numericInput("pca_x_comp", "Principal component on X axis", 
+                                           value = 1, min = 1, max = 10, step = 1),
+                              numericInput("pca_y_comp", "Principal component on Y axis", 
+                                           value = 2, min = 1, max = 10, step = 1)
+                              )
+                     ),
+                     
                      downloadButton("exp_pca_down", "Download plot"),
                      withSpinner(plotOutput("exp_pca", height = "700px"))
             )
@@ -144,6 +174,11 @@ body <- dashboardBody(
                                  list("Exposures to the principal components",
                                       "Phenotypes to the principal components"),
                                  selected = "Exposures to the principal components"),
+                     actionButton("visualize_table_pca_association", "Visualize as table"),
+                     bsModal("pca_ass_table", "", "visualize_table_pca_association", size = "large",
+                             downloadButton("download_pca_ass", "Download table"),
+                             DTOutput("visualize_table_pca_association_table")
+                             ),
                      downloadButton("exp_association_down", "Download plot"),
                      withSpinner(plotOutput("exp_association", height = "600px"))
             )
@@ -160,6 +195,7 @@ body <- dashboardBody(
     ),
     tabItem(tabName = "cluster_exposures",
             tabPanel('Cluster Exposures',
+                     numericInput("clustering_k", "Number of clusters", 3, 1),
                      downloadButton("ind_clustering_down", "Download plot"),
                      withSpinner(plotOutput("ind_clustering", height =  "800px"))
             )
@@ -182,9 +218,10 @@ body <- dashboardBody(
                      ),
                      fluidRow(
                        column(8,
+                              downloadButton("exwas_as_down", "Download plot"),
+                              downloadButton("exwas_as_down_table", "Download ExWAS table of results"),
                               textOutput("exwas_effect"),
-                              withSpinner(plotOutput("exwas_as", click = "exwas_asPlotSelection", height = "700px")),
-                              downloadButton("exwas_as_down", "Download plot")
+                              withSpinner(plotOutput("exwas_as", click = "exwas_asPlotSelection", height = "700px"))
                        ),
                        column(4,
                               h3("Selected point information:"),
@@ -238,6 +275,7 @@ body <- dashboardBody(
                      actionButton("mexwas_plot", "Run model"),
                      bsModal("mexwas", "", "mexwas_plot", size = "large",
                              downloadButton("mea_down", "Download plot"),
+                             downloadButton("download_mexwas", "Download MExWAS table of results"),
                              withSpinner(plotOutput("mea", height = "700px")))
             )
     ),

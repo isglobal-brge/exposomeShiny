@@ -7,6 +7,51 @@ output$download_impset <- downloadHandler(
     write.csv(cbind(data.frame(idnum = sampleNames(exposom$exp)), rexposome::expos(exposom$exp)), con, row.names = FALSE)
   }
 )
+
+output$exwas_as_down_table <- downloadHandler(
+  filename = function() {
+    paste0('exwas_results','.csv')
+  },
+  content = function(con) {
+    write.csv(exposom$fl@comparison, con, row.names = TRUE)
+  }
+)
+
+output$desc_stats_down <- downloadHandler(
+  filename = function() {
+    paste0('descriptive_stats_exposures','.csv')
+  },
+  content = function(con) {
+    write.csv(pastecs::stat.desc(expos(exposom$exp)), con, row.names = TRUE)
+  }
+)
+
+output$download_mexwas <- downloadHandler(
+  filename = function() {
+    paste0('mexwas_results','.csv')
+  },
+  content = function(con) {
+    write.csv(
+      data.table::dcast(plotExwas(exposom$fl_m)$data, exposure ~ variable)
+      , con, row.names = FALSE)
+  }
+)
+
+output$download_pca_ass <- downloadHandler(
+  filename = function() {
+    paste0('pca_association','.csv')
+  },
+  content = function(con) {
+    write.csv(
+      if(input$ass_choice == "Exposures to the principal components"){
+        data.table::dcast(plotEXP(exposom$exp_pca)$data, Dim ~ Exposures)
+      }
+      else{
+        data.table::dcast(plotPHE(exposom$exp_pca)$data, Dim ~ variable)
+      }
+      , con, row.names = FALSE)
+  }
+)
 # MILLORAR LA IMPLEMENTACIO PER PODER TRIAR ON ES GUARDE!
 output$download_impset_rdata <- downloadHandler(
   filename = function() {

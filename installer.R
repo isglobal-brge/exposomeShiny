@@ -1,4 +1,5 @@
-pkg_list <- c("shiny", "shinyBS", "mice", "DT", "ggplot2", "data.table", "truncdist", "shinyalert", "shinydashboard", "devtools")
+pkg_list <- c("shiny", "shinyBS", "mice", "DT", "ggplot2", "data.table", "truncdist", "shinyalert", "shinydashboard", "devtools",
+              "shinycssloaders", "pastecs")
 
 for(pkg in pkg_list){
   if (!require(pkg, character.only = TRUE)) {

@@ -7,7 +7,7 @@ server <- function(input, output, session) {
   exposom <- reactiveValues(exp = NULL, exp_std = NULL, exp_pca = NULL, nm = NULL, 
                             lod_candidates = NULL, lod_candidates_index = NULL, 
                             normal_false = NULL, exposures_values = NULL, exwas_eff = NULL,
-                            exp_subset = NULL, fl = NULL, ctd_exp = NULL)
+                            exp_subset = NULL, fl = NULL, ctd_exp = NULL, fl_m = NULL)
   files <- reactiveValues(description = NULL, phenotypes = NULL, exposures = NULL)
   exposom_lists <- reactiveValues(phenotypes_list = NULL, phenotypes_list_og = NULL, 
                                   exposure_names = NULL, exposure_names_withall = NULL,
@@ -124,24 +124,77 @@ server <- function(input, output, session) {
     selectInput("volcan_rid_select_input", "Select the exposure to plot:",
                 exposom_lists$exposure_class)
   })
+  
+  output$description.expCol.tag.ui <- renderUI({
+    selectInput("description.expCol.tag", "Select column of 'description' that contains the exposures", exposom_lists$description_cols)
+  })
+  output$description.famCol.tag.ui <- renderUI({
+    selectInput("description.famCol.tag", "Select column of 'description' that contains the families", exposom_lists$description_cols)
+  })
+  output$exposures.samCol.tag.ui <- renderUI({
+    selectInput("exposures.samCol.tag", "Select column of 'exposures' that contains the id's", exposom_lists$exposures_cols)
+  })
+  output$phenotype.samCol.tag.ui <- renderUI({
+    selectInput("phenotype.samCol.tag", "Select column of 'phenotyes' that contains the id's", exposom_lists$phenotypes_cols)
+  })
+  
   observeEvent(input$data_columns_read, {
-    exposom_lists$description_cols <- colnames(fread(input$description$datapath))
-    exposom_lists$exposures_cols <- colnames(fread(input$exposures$datapath))
-    exposom_lists$phenotypes_cols <- colnames(fread(input$phenotypes$datapath))
-    toggle("data_columns_read")
-    toggle("data_load")
+    if(any(c(is.null(input$description$datapath), 
+             is.null(input$exposures$datapath), 
+             is.null(input$phenotypes$datapath)))){
+      shinyalert("Oops!", "All three files have to be selected", type = "error")
+    }
+    else{
+      exposom_lists$description_cols <- colnames(fread(input$description$datapath))
+      exposom_lists$exposures_cols <- colnames(fread(input$exposures$datapath))
+      exposom_lists$phenotypes_cols <- colnames(fread(input$phenotypes$datapath))
+      
+      hideElement("data_load")
+      showElement("data_check")
+      showElement("explore_tables")
+      showElement("explore_tables_selected")
+      showElement("exposures.samCol.tag.ui")
+      showElement("phenotype.samCol.tag.ui")
+      showElement("description.expCol.tag.ui")
+      showElement("description.famCol.tag.ui")
+      showElement("factor_num")
+      showElement("lod_encoding")
+    }
+  })
+  
+  observeEvent(input$data_check, {
+    description_file <- input$description
+    files$description <- description_file$datapath
+    phenotypes_file <- input$phenotypes
+    files$phenotypes <- phenotypes_file$datapath
+    exposures_file <- input$exposures
+    files$exposures <- exposures_file$datapath
     
-    output$description.expCol.tag.ui <- renderUI({
-      selectInput("description.expCol.tag", "Select column of 'description' that contains the exposures", exposom_lists$description_cols)
-    })
-    output$description.famCol.tag.ui <- renderUI({
-      selectInput("description.famCol.tag", "Select column of 'description' that contains the families", exposom_lists$description_cols)
-    })
-    output$exposures.samCol.tag.ui <- renderUI({
-      selectInput("exposures.samCol.tag", "Select column of 'exposures' that contains the id's", exposom_lists$exposures_cols)
-    })
-    output$phenotype.samCol.tag.ui <- renderUI({
-      selectInput("phenotype.samCol.tag", "Select column of 'phenotyes' that contains the id's", exposom_lists$phenotypes_cols)
+      if(input$data_separator == "Space(s)/Tabs/Newlines/Carriage returns"){
+        separator <- ""
+      }
+      else{
+        separator <- input$data_separator
+      }
+    
+    tryCatch({
+      readExposome(exposures = files$exposures, description = files$description, 
+                   phenotype = files$phenotypes, exposures.samCol = input$exposures.samCol.tag, 
+                   description.expCol = input$description.expCol.tag, 
+                   description.famCol = input$description.famCol.tag, phenotype.samCol = input$phenotype.samCol.tag,
+                   sep = separator)
+      showElement("data_load")
+      hideElement("data_check")
+      hideElement("explore_tables")
+      hideElement("explore_tables_selected")
+      hideElement("exposures.samCol.tag.ui")
+      hideElement("phenotype.samCol.tag.ui")
+      hideElement("description.expCol.tag.ui")
+      hideElement("description.famCol.tag.ui")
+      hideElement("factor_num")
+      hideElement("lod_encoding")
+    }, error = function(w){
+      shinyalert("Oops!", "Error with selected columns", type = "error")
     })
   })
   
@@ -154,10 +207,17 @@ server <- function(input, output, session) {
     files$exposures <- exposures_file$datapath
     
     withProgress(message = 'Loading the selected data', value = 0, {
+      if(input$data_separator == "Space(s)/Tabs/Newlines/Carriage returns"){
+        separator <- ""
+      }
+      else{
+        separator <- input$data_separator
+      }
       exposom$exp <- readExposome(exposures = files$exposures, description = files$description, 
                                   phenotype = files$phenotypes, exposures.samCol = input$exposures.samCol.tag, 
                                   description.expCol = input$description.expCol.tag, 
-                                  description.famCol = input$description.famCol.tag, phenotype.samCol = input$phenotype.samCol.tag)
+                                  description.famCol = input$description.famCol.tag, phenotype.samCol = input$phenotype.samCol.tag,
+                                  sep = separator, exposures.asFactor = input$factor_num)
       incProgress(0.2)
       exposom$exp_std <- standardize(exposom$exp, method = "normal")
       incProgress(0.4)
@@ -179,10 +239,10 @@ server <- function(input, output, session) {
                                                    'All', after = 0)
     exposom$exposures_values <- as.data.table(read.csv(files$exposures))
     description_values <- read.csv(files$description)
-    exposom$lod_candidates <- unique(as.list(as.character(description_values[which(exposom$exposures_values == -1,
+    exposom$lod_candidates <- unique(as.list(as.character(description_values[which(exposom$exposures_values == input$lod_encoding,
                                                                                    arr.ind = TRUE)[,2] - 1,2])))
     
-    exposom$lod_candidates_index <- which(exposom$exposures_values == -1, arr.ind = TRUE)
+    exposom$lod_candidates_index <- which(exposom$exposures_values == input$lod_encoding, arr.ind = TRUE)
     if (length(exposom$lod_candidates) != 0) {
       output$lod_help <- renderUI({
         actionButton("lod_help_button", "Help about the LOD substitution")
@@ -214,6 +274,7 @@ server <- function(input, output, session) {
                [1]: Richardson DB, Ciampi A. Effects of exposure measurement error when an exposure variable is constrained by a lower limit.
 ", type = "info")
   })
+  # proxy_lod = dataTableProxy('lod_data_entry_table')
   observeEvent(input$lod_data_entry_table_cell_edit, {
     info = input$lod_data_entry_table_cell_edit
     i = info$row
@@ -222,6 +283,7 @@ server <- function(input, output, session) {
     exposom$lod_candidates[i, j] <<- DT::coerceValue(v, as.numeric(exposom$lod_candidates[i, j]))
     replaceData(proxy, exposom$lod_candidates, resetPaging = FALSE)
   })
+  # proxy_exwas = dataTableProxy('selected_symbols_exwas')
   observeEvent(input$selected_symbols_exwas_cell_edit, {
     info = input$selected_symbols_exwas_cell_edit
     i = info$row
@@ -271,7 +333,8 @@ server <- function(input, output, session) {
     exposom$exp <- readExposome(exposures = files$exposures, description = files$description, 
                                 phenotype = files$phenotypes, exposures.samCol = input$exposures.samCol.tag, 
                                 description.expCol = input$description.expCol.tag, 
-                                description.famCol = input$description.famCol.tag, phenotype.samCol = input$phenotype.samCol.tag)
+                                description.famCol = input$description.famCol.tag, phenotype.samCol = input$phenotype.samCol.tag,
+                                exposures.asFactor = input$factor_num)
     exposom$exp_std <- standardize(exposom$exp, method = "normal")
     exposom$exp_pca <- pca(exposom$exp_std)
     exposom$nm <- normalityTest(exposom$exp)
@@ -319,11 +382,11 @@ server <- function(input, output, session) {
   observeEvent(input$help_normalize_values, {
     shinyalert("Normalize info", "
               To introduce the desired normalizing method, double click on the normalization method column and introduce the desired method.
-              The supported methods are 'log', '^1/3' and 'sqrt'.
+              The supported methods are 'log'(natural logarithm), '^1/3' and 'sqrt'.
               If no normalization method is desired input 'none'.", type = "info")
   })
   
-  proxy = dataTableProxy('exp_normality_false')
+  proxy = dataTableProxy('a')
   observeEvent(input$exp_normality_false_cell_edit, {
     info = input$exp_normality_false_cell_edit
     i = info$row
@@ -540,6 +603,8 @@ server <- function(input, output, session) {
     env_path <- env_file$datapath
     load(env_path)
   })
+  
+  observeEvent(input$stop,{browser()})
 }
 
 

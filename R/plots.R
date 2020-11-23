@@ -3,8 +3,18 @@ output$missPlot <- renderPlot(
 )
 output$exp_normality_graph <- renderPlot({
   exp_index = input$exp_normality_rows_selected
-  exp_title = paste0(exposom$nm[[1]][exp_index], " - Histogram")
-  plotHistogram(exposom$exp, select = exposom$nm[[1]][exp_index]) + ggtitle(exp_title)
+  if(is.null(exp_index)){
+    shinyalert("Oops!", "No exposure selected.", type = "error") 
+  }
+  else{
+    exp_title = paste0(exposom$nm[[1]][exp_index], " - Histogram")
+    if(input$histogram_type == "Histogram"){
+      plotHistogram(exposom$exp, select = exposom$nm[[1]][exp_index]) + ggtitle(exp_title)
+    }
+    else{
+      plotHistogram(exposom$exp, select = exposom$nm[[1]][exp_index], show.trans = TRUE) + ggtitle(exp_title)
+    }
+  }
 })
 output$exp_behaviour <- renderPlot({
   family_selected = input$family
@@ -26,9 +36,11 @@ output$exp_pca <- renderPlot({
   set_pca = input$pca_set
   pheno_pca = input$group_pca
   if (set_pca == "samples" && pheno_pca != "None") {
-    plotPCA(exposom$exp_pca, set = set_pca, phenotype = pheno_pca)
+    plotPCA(exposom$exp_pca, set = set_pca, phenotype = pheno_pca, 
+            cmpX = input$pca_x_comp, cmpY = input$pca_y_comp)
   }
-  else {plotPCA(exposom$exp_pca, set = set_pca)}
+  else {plotPCA(exposom$exp_pca, set = set_pca, 
+                cmpX = input$pca_x_comp, cmpY = input$pca_y_comp)}
 })
 output$exp_correlation <- renderPlot({
   type <- input$exp_corr_choice
@@ -45,10 +57,10 @@ output$ind_clustering <- renderPlot({
     hclust(d = dist(x = data), ...)
   }
   hclust_k3 <- function(result) {
-    cutree(result, k = 3)
+    cutree(result, k = input$clustering_k)
   }
   exp_c <- clustering(exposom$exp, method = hclust_data, cmethod = hclust_k3)
-  plotClassification(exp_c, type = "valuemap", family = "all")
+  plotClassification(exp_c)#, type = "valuemap", family = "all")
 })
 output$exp_association <- renderPlot({
   if (input$ass_choice == "Exposures to the principal components") {
@@ -182,17 +194,18 @@ output$mea <- renderPlot({
                              description.expCol = "Exposure")
       
       ex_1 <- toES(exp_imp, rid = 1)
-      fl_m <- mexwas(ex_1, phenotype = outcome, family = family_out)
+      exposom$fl_m <- mexwas(ex_1, phenotype = outcome, family = family_out)
+      browser()
     })
-    plotExwas(fl_m) +
+    plotExwas(exposom$fl_m) +
       ylab("") +
       ggtitle("Exposome Association Study - Multivariate Approach")
   }
   else {
     outcome <- input$mexwas_outcome
     family_out <- input$mexwas_output_family
-    fl_m <- mexwas(exposom$exp, phenotype = outcome, family = family_out)
-    plotExwas(fl_m) +
+    exposom$fl_m <- mexwas(exposom$exp, phenotype = outcome, family = family_out)
+    plotExwas(exposom$fl_m) +
       ylab("") +
       ggtitle("Exposome Association Study - Multivariate Approach")
   }

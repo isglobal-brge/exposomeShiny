@@ -1,3 +1,13 @@
+output$explore_data_render <- DT::renderDataTable({
+  DT::datatable(fread(input[[input$explore_tables_selected]]$datapath), 
+                options = list(scrollX = TRUE))
+})
+
+output$desc_stats <- DT::renderDataTable({
+  DT::datatable(data.frame(lapply(pastecs::stat.desc(expos(exposom$exp)), round, 3)), 
+                options = list(scrollX = TRUE, pageLength = 14))
+})
+
 output$exp_normality <- renderDT(exposom$nm, class = 'cell-border stripe',
                                  options=list(columnDefs = list(list(visible=FALSE,
                                                                      targets=c(0))),
@@ -31,10 +41,20 @@ output$selectedProbesTable <- renderDataTable(
 output$selectedProbesTable_exwas <- renderDataTable(
   data.frame(Chemical = tryCatch({input$exwas_asPlotSelection$domain$discrete_limits$y[[round(input$exwas_asPlotSelection$y)]]}, 
                                  error = function(cond){}),
-Pvalue = tryCatch({round(-log10(as.numeric(exposom$fl@comparison[input$exwas_asPlotSelection$domain$discrete_limits$y[[round(input$exwas_asPlotSelection$y)]],]$pvalue)), digits = 2)},
+Effect = tryCatch({round(as.numeric(exposom$fl@comparison[input$exwas_asPlotSelection$domain$discrete_limits$y[[round(input$exwas_asPlotSelection$y)]],]$effect), digits = 2)},
                  error = function(cond){}
-                 )), 
-  selection = "single", class = 'cell-border stripe', options=list(searching = FALSE, columnDefs = list(list(visible=FALSE,
+                 ),
+CI2.5 = tryCatch({round(as.numeric(exposom$fl@comparison[input$exwas_asPlotSelection$domain$discrete_limits$y[[round(input$exwas_asPlotSelection$y)]],]$X2.5), digits = 2)},
+                  error = function(cond){}
+),
+CI97.5 = tryCatch({round(as.numeric(exposom$fl@comparison[input$exwas_asPlotSelection$domain$discrete_limits$y[[round(input$exwas_asPlotSelection$y)]],]$X97.5), digits = 2)},
+                  error = function(cond){}
+),
+Pvalue = tryCatch({round(-log10(as.numeric(exposom$fl@comparison[input$exwas_asPlotSelection$domain$discrete_limits$y[[round(input$exwas_asPlotSelection$y)]],]$pvalue)), digits = 2)},
+                  error = function(cond){}
+)
+), 
+  selection = "single", class = 'cell-border stripe', options=list(scrollX = TRUE, searching = FALSE, columnDefs = list(list(visible=FALSE,
                                                                                        targets=c(0))))
 )
 output$selected_symbols <- renderDataTable(ctd_d$symbol, class = 'cell-border stripe',
@@ -54,3 +74,13 @@ output$ctd_diseases_curated <- renderDataTable(as.data.table(ctd_d$ctd_query_tab
                                                options=list(columnDefs = list(list(visible=FALSE,
                                                                                    targets=c(3, 4)))))
 
+output$visualize_table_pca_association_table <- renderDataTable(
+  if(input$ass_choice == "Exposures to the principal components"){
+    data.table::dcast(plotEXP(exposom$exp_pca)$data, Dim ~ Exposures)
+  }
+  else{
+    data.table::dcast(plotPHE(exposom$exp_pca)$data, Dim ~ variable)
+  },                                           class = 'cell-border stripe',
+                                               options=list(columnDefs = list(list(visible=FALSE,
+                                                                                   targets=c(0))),
+                                                            scrollX = TRUE))
