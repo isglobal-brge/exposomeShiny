@@ -4,8 +4,11 @@ output$explore_data_render <- DT::renderDataTable({
 })
 
 output$desc_stats <- DT::renderDataTable({
-  DT::datatable(data.frame(lapply(pastecs::stat.desc(expos(exposom$exp)), round, 3)), 
-                options = list(scrollX = TRUE, pageLength = 14))
+  DT::datatable(cbind(Stat = rownames(pastecs::stat.desc(expos(exposom$exp))), 
+                      data.frame(lapply(pastecs::stat.desc(expos(exposom$exp)), round, 3))), 
+                options = list(columnDefs = list(list(visible=FALSE,
+                                                      targets=c(0))),
+                               scrollX = TRUE, pageLength = 14))
 })
 
 output$exp_normality <- renderDT(exposom$nm, class = 'cell-border stripe',
