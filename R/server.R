@@ -8,7 +8,7 @@ server <- function(input, output, session) {
                             lod_candidates = NULL, lod_candidates_index = NULL, 
                             normal_false = NULL, exposures_values = NULL, exwas_eff = NULL,
                             exp_subset = NULL, fl = NULL, ctd_exp = NULL, fl_m = NULL)
-  files <- reactiveValues(description = NULL, phenotypes = NULL, exposures = NULL)
+  files <- reactiveValues(description = NULL, phenotypes = NULL, exposures = NULL, expo_feno = NULL, expo_fams = NA)
   exposom_lists <- reactiveValues(phenotypes_list = NULL, phenotypes_list_og = NULL, 
                                   exposure_names = NULL, exposure_names_withall = NULL,
                                   exposure_class = NULL, subset_list = NULL, model_list = NULL,
@@ -37,6 +37,170 @@ server <- function(input, output, session) {
     })
     dropdownMenu(type = "notifications", .list = msgs)
   })
+  
+  observeEvent(input$input_selector, {
+    if(input$input_selector == TRUE){
+      hideElement("exposures")
+      hideElement("description")
+      hideElement("phenotypes")
+      hideElement("data_columns_read")
+      hideElement("info_files_entry")
+      showElement("data_columns_read_plain_table")
+      showElement("plain_table")
+    }
+    else{
+      showElement("exposures")
+      showElement("description")
+      showElement("phenotypes")
+      showElement("data_columns_read")
+      showElement("info_files_entry")
+      hideElement("data_columns_read_plain_table")
+      hideElement("plain_table")
+    }
+    
+  })
+  
+  observeEvent(input$data_columns_read_plain_table ,{
+    
+    if(input$data_separator == "Space(s)/Tabs/Newlines/Carriage returns"){
+      separator <- ""
+    }
+    else{
+      separator <- input$data_separator
+    }
+    
+    files$expo_feno <- colnames(fread(input$plain_table$datapath))[2:length(colnames(fread(input$plain_table$datapath)))]
+    
+    output$plain_feno_ui <- renderUI({
+      selectInput("plain_feno", "Select the phenotypes", multiple = TRUE, choices = files$expo_feno)
+    })
+    
+    output$plain_feno_confirm <- renderUI({
+      actionButton("plain_feno_confirm", "Confirm")
+    })
+    
+    hideElement("data_columns_read_plain_table")
+    hideElement("data_separator")
+    hideElement("info_files_entry")
+    hideElement("input_selector")
+    hideElement("plain_table")
+    
+  })
+  
+  observeEvent(input$plain_feno_confirm, {
+    hideElement("plain_feno_confirm")
+    hideElement("plain_feno")
+    showElement("factor_num")
+    showElement("lod_encoding")
+    showElement("aux_hr_line")
+    
+    output$plain_feno_table <- renderUI({
+      DTOutput("plain_feno_exposures")
+    })
+    
+    output$plain_feno_fam_name <- renderUI({
+      textInput("plain_feno_fam", "Family of selected exposures")
+    })
+    
+    output$plain_feno_fam_name_assign <- renderUI({
+      actionButton("plain_feno_assign", "Assign")
+    })
+    
+    output$plain_feno_table_load <- renderUI({
+      actionButton("plain_feno_load", "Load data")
+    })
+    
+  })
+  
+  observeEvent(input$plain_feno_assign, {
+    files$expo_fams[input$plain_feno_exposures_rows_selected] <- input$plain_feno_fam
+  })
+  
+  observeEvent(input$plain_feno_load, {
+    
+    families <- data.table(Family = files$expo_fams[1:length(files$expo_feno[!(files$expo_feno %in% input$plain_feno)])],
+               Exposure = files$expo_feno[!(files$expo_feno %in% input$plain_feno)])
+    families[is.na(families$Family),]$Family <- families[is.na(families$Family),]$Exposure
+    
+    data_full <- as.data.frame(fread(input$plain_table$datapath))
+    which_exposures <- !(colnames(data_full) %in% input$plain_feno)
+    which_exposures[1] <- TRUE
+    which_phenotype <- !which_exposures
+    which_phenotype[1] <- TRUE
+    # browser()
+    write.csv(families, "../temp/descr.csv", row.names = FALSE, quote = FALSE, dec = "")
+    
+    write.csv(data_full[,which_exposures], "../temp/expo.csv", row.names = FALSE, quote = FALSE, dec = "")
+    
+    write.csv(data_full[,which_phenotype], "../temp/pheno.csv", row.names = FALSE, quote = FALSE, dec = "")
+
+    # description_file <- input$description
+    files$description <- "../temp/descr.csv"
+    # phenotypes_file <- input$phenotype"../temp/pheno.csv"
+    files$phenotypes <- "../temp/pheno.csv"
+    # exposures_file <- input$exposures
+    files$exposures <- "../temp/expo.csv"
+
+    withProgress(message = 'Loading the selected data', value = 0, {
+      if(input$data_separator == "Space(s)/Tabs/Newlines/Carriage returns"){
+        separator <- ""
+      }
+      else{
+        separator <- input$data_separator
+      }
+      exposom$exp <- readExposome(exposures = files$exposures, description = files$description, 
+                                  phenotype = files$phenotypes, exposures.samCol = 1, 
+                                  description.expCol = "Exposure", 
+                                  description.famCol = "Family", phenotype.samCol = 1,
+                                  sep = separator, exposures.asFactor = input$factor_num)
+      incProgress(0.2)
+      exposom$exp_std <- standardize(exposom$exp, method = "normal")
+      incProgress(0.4)
+      exposom$exp_pca <- pca(exposom$exp_std, pca = TRUE)
+      incProgress(0.7)
+      exposom$nm <- normalityTest(exposom$exp)
+      exposom$nm[,3] <- as.numeric(formatC(exposom$nm[,3], format = "e", digits = 2))
+      exposom$normal_false <- as.data.table(exposom$nm)[normality == FALSE]
+      exposom$normal_false[, normality := NULL]
+      exposom$normal_false[, p.value := NULL]
+      exposom$normal_false[, Method := "log"]
+      exposom$normal_false <- as.data.frame(exposom$normal_false)
+    })
+    exposom_lists$phenotypes_list_og <- as.list(phenotypeNames(exposom$exp))
+    exposom_lists$phenotypes_list <- append(exposom_lists$phenotypes_list_og,
+                                            'None', after = 0)
+    exposom_lists$exposure_names <- as.list(familyNames(exposom$exp))
+    exposom_lists$exposure_names_withall <- append(exposom_lists$exposure_names,
+                                                   'All', after = 0)
+    exposom$exposures_values <- as.data.table(read.csv(files$exposures))
+    description_values <- read.csv(files$description)
+    exposom$lod_candidates <- unique(as.list(as.character(description_values[which(exposom$exposures_values == input$lod_encoding,
+                                                                                   arr.ind = TRUE)[,2] - 1,2])))
+    
+    exposom$lod_candidates_index <- which(exposom$exposures_values == input$lod_encoding, arr.ind = TRUE)
+    if (length(exposom$lod_candidates) != 0) {
+      output$lod_help <- renderUI({
+        actionButton("lod_help_button", "Help about the LOD substitution")
+      })
+      exposom$lod_candidates <- data.frame(matrix(unlist(exposom$lod_candidates)), seq(1,length(exposom$lod_candidates)))
+      colnames(exposom$lod_candidates) <- c("Exposure","LOD")
+      transform(exposom$lod_candidates, LOD = as.numeric(LOD))
+      output$dl_lodtable_ui <- renderUI({
+        DTOutput("lod_data_entry_table", width = "60%")
+      })
+      output$lod_imputation_type <- renderUI({
+        selectInput("lod_imputation_type_input", "Choose imputation method: ",
+                    list("LOD/sqrt(2)", "Random imputation"))
+      })
+      output$lod_substitution <- renderUI({
+        actionButton("lod_substitution_input", "Perform LOD imputation with the values provided")
+      })
+    }
+    info_messages$exp_status <- 100
+    info_messages$exp_hue <- "green"
+    
+  })
+  
   observeEvent(input$omic_data_load, {
     withProgress(message = "Loading data", value = 0, {
       omics$omic_file <- get(load(input$omic_data$datapath))
@@ -446,10 +610,8 @@ server <- function(input, output, session) {
         }
       }
       
-      bd_column_inde <- grep("birthdate", colnames(dta))
-      
       incProgress(0.5)
-      imp <- mice(dta[ , -bd_column_inde], pred = quickpred(dta[ , -bd_column_inde],
+      imp <- mice(dta, pred = quickpred(dta,
                 mincor = 0.2, minpuc = 0.4), seed = 38788, m = 5, maxit = 10, printFlag = FALSE)
       
       incProgress(0.7)

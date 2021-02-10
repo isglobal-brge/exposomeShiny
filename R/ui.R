@@ -17,6 +17,7 @@ library(GenomicRanges)
 library(CTDquerier)
 library(shinycssloaders)
 library(pastecs)
+library(shinyWidgets)
 
 ## ui.R ##
 sidebar <- dashboardSidebar(
@@ -62,6 +63,18 @@ body <- dashboardBody(
             tabPanel('Data entry',
                      fluidRow(
                        column(6,
+                              materialSwitch(inputId = "input_selector", label = "My data is contained in a single table",
+                                             status = "primary", value = FALSE),
+                              hidden(fileInput("plain_table", "Choose data CSV File",
+                                        accept = c(
+                                          "text/csv",
+                                          "text/comma-separated-values,text/plain",
+                                          ".csv")
+                              )),
+                              uiOutput("plain_feno_ui"),
+                              uiOutput("plain_feno_confirm"),
+                              uiOutput("plain_feno_table"),
+                              uiOutput("plain_feno_table_load"),
                               fileInput("exposures", "Choose exposures CSV File",
                                         accept = c(
                                           "text/csv",
@@ -82,8 +95,9 @@ body <- dashboardBody(
                                           ".csv")
                               ),
                               selectInput("data_separator", "Select the delimiter of the inputed files", c(",", ";", "Space(s)/Tabs/Newlines/Carriage returns")),
-                              h6("All files must use the same delimiter"),
+                              h6(id = "info_files_entry", "All files must use the same delimiter"),
                               actionButton("data_columns_read", "Read files information"),
+                              hidden(actionButton("data_columns_read_plain_table", "Read file information")),
                               hidden(selectInput("explore_tables_selected", "Table to explore", c("exposures", "description", "phenotypes"))),
                               hidden(actionButton("explore_tables", "Explore selected table")),
                               bsModal("explore_tbl", "", "explore_tables", size = "large",
@@ -98,7 +112,9 @@ body <- dashboardBody(
                               hidden(uiOutput("description.famCol.tag.ui")),
                               hidden(numericInput("factor_num", "The exposures with more than this number of unique items will be considered as 'continuous'", 5)),
                               hidden(textInput("lod_encoding", "Select LOD enconding to search", "-1")),
-                              hidden(actionButton("data_check", "Validate selections"))
+                              hidden(actionButton("data_check", "Validate selections")),
+                              uiOutput("plain_feno_fam_name"),
+                              uiOutput("plain_feno_fam_name_assign")
                               ),
                        uiOutput("dl_lodtable_ui", align = "center"),
                        uiOutput("lod_help", align = "center"),

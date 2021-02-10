@@ -1,3 +1,9 @@
+output$plain_feno_exposures <- DT::renderDataTable(
+  data.table(Exposures = files$expo_feno[!(files$expo_feno %in% input$plain_feno)], 
+             Family = files$expo_fams[1:length(files$expo_feno[!(files$expo_feno %in% input$plain_feno)])]),
+  options = list(columnDefs = list(list(visible=FALSE,
+                                        targets=c(0))), searching = FALSE)
+)
 output$explore_data_render <- DT::renderDataTable({
   DT::datatable(fread(input[[input$explore_tables_selected]]$datapath), 
                 options = list(scrollX = TRUE))
