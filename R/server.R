@@ -10,11 +10,13 @@ server <- function(input, output, session) {
                             exp_subset = NULL, fl = NULL, ctd_exp = NULL, fl_m = NULL)
   files <- reactiveValues(description = NULL, phenotypes = NULL, exposures = NULL, expo_feno = NULL, expo_fams = NA)
   exposom_lists <- reactiveValues(phenotypes_list = NULL, phenotypes_list_og = NULL, 
+                                  phenotypes_list_og_class = NULL,
                                   exposure_names = NULL, exposure_names_withall = NULL,
                                   exposure_class = NULL, subset_list = NULL, model_list = NULL,
                                   description_cols = NULL, exposures_cols = NULL, phenotypes_cols = NULL)
   omics <- reactiveValues(multi = NULL, omic_file = NULL, hit_lam_table = NULL, 
-                          results_table = NULL, gexp = NULL, aux = NULL, dta = NULL)
+                          results_table = NULL, gexp = NULL, aux = NULL, dta = NULL,
+                          crossomics = NULL)
   info_messages <- reactiveValues(messageData = NULL, exp_status = 0, omic_status = 0,
                                   lod_status = 0, missing_status = 0, normality_status = 0,
                                   exp_hue = "red", omic_hue = "red",
@@ -23,6 +25,8 @@ server <- function(input, output, session) {
   ctd_d <- reactiveValues(symbol = NULL, all_diseases = NULL, ctd_query = NULL,  
                           ctd_query_table = NULL, ctd_query_table_curated = NULL,
                           associated_diseases = NULL, ctd_chems = NULL)
+  
+  omic_num <- reactiveVal(1)
   
   output$messageMenu <- renderMenu({
     info_messages$messageData <- data.frame(value = c(info_messages$exp_status, info_messages$lod_status, info_messages$missing_status,
@@ -36,6 +40,56 @@ server <- function(input, output, session) {
       taskItem(value = row[["value"]], color = row[["color"]], row[["text"]])
     })
     dropdownMenu(type = "notifications", .list = msgs)
+  })
+  
+  observeEvent(input$add_omic_data_fields, {
+    omic_num(omic_num() + 1)
+    insertUI(
+      selector = paste0("#omics_int_", omic_num() - 1),
+      where = "afterEnd",
+      ui = fluidRow(id = paste0("omics_int_", omic_num()),
+           column(6,
+                  fileInput(paste0("omic_data_", omic_num()), "Choose the omic data file")
+                  
+           ),
+           column(6,
+                  textInput(paste0("omic_type_", omic_num()), "Type of file")
+           ))
+    )
+  })
+  
+  observeEvent(input$omic_data_multi_load, {
+    if(is.null(exposom$exp)){stop("Exposome set needed to be loaded")}
+    withProgress(message = "Performing integration Analysis", {
+      omics$multi <- createMultiDataSet()
+      omics$multi <- add_exp(omics$multi, exposom$exp)
+      incProgress(0.5)
+      for(i in seq(1, omic_num())){
+        if(is.null(input[[paste0("omic_data_", i)]]$datapath) || is.null(input[[paste0("omic_type_", i)]])){
+          next
+        }
+        if(input[[paste0("omic_type_", i)]] == "expression"){
+          omics$multi <- add_genexp(omics$multi, get(load(input[[paste0("omic_data_", i)]]$datapath)))
+        }
+        else{
+          omics$multi <- add_eset(omics$multi, get(load(input[[paste0("omic_data_", i)]]$datapath)), 
+                                  dataset.type = input[[paste0("omic_type_", i)]])
+        }
+      }
+      incProgress(0.8)
+      if(input$integration_method == "MCIA"){
+        omics$crossomics <- crossomics(mds, method = "mcia", verbose = TRUE)
+      }
+      else if(input$integration_method == "GCCA"){
+        omics$crossomics <- crossomics(mds, method = "mcia", verbose = TRUE)
+      }
+      
+    })
+    
+    
+    info_messages$omic_status <- 100
+    info_messages$omic_hue <- "green"
+    
   })
   
   observeEvent(input$input_selector, {
@@ -167,6 +221,9 @@ server <- function(input, output, session) {
       exposom$normal_false <- as.data.frame(exposom$normal_false)
     })
     exposom_lists$phenotypes_list_og <- as.list(phenotypeNames(exposom$exp))
+    exposom_lists$phenotypes_list_og_class <- lapply(exposom_lists$phenotypes_list_og, 
+                                                     function(x){class(pData(exposom$exp)[[x]])})
+    exposom_lists$phenotypes_list_og_class_factor <- unlist(exposom_lists$phenotypes_list_og)[which(unlist(exposom_lists$phenotypes_list_og_class) == "factor")]
     exposom_lists$phenotypes_list <- append(exposom_lists$phenotypes_list_og,
                                             'None', after = 0)
     exposom_lists$exposure_names <- as.list(familyNames(exposom$exp))
@@ -190,7 +247,7 @@ server <- function(input, output, session) {
       })
       output$lod_imputation_type <- renderUI({
         selectInput("lod_imputation_type_input", "Choose imputation method: ",
-                    list("LOD/sqrt(2)", "Random imputation"))
+                    list("LOD/sqrt(2)", "QRILC"))
       })
       output$lod_substitution <- renderUI({
         actionButton("lod_substitution_input", "Perform LOD imputation with the values provided")
@@ -396,6 +453,9 @@ server <- function(input, output, session) {
       exposom$normal_false <- as.data.frame(exposom$normal_false)
     })
     exposom_lists$phenotypes_list_og <- as.list(phenotypeNames(exposom$exp))
+    exposom_lists$phenotypes_list_og_class <- lapply(exposom_lists$phenotypes_list_og, 
+                                                     function(x){class(pData(exposom$exp)[[x]])})
+    exposom_lists$phenotypes_list_og_class_factor <- unlist(exposom_lists$phenotypes_list_og)[which(unlist(exposom_lists$phenotypes_list_og_class) == "factor")]
     exposom_lists$phenotypes_list <- append(exposom_lists$phenotypes_list_og,
                                             'None', after = 0)
     exposom_lists$exposure_names <- as.list(familyNames(exposom$exp))
@@ -527,13 +587,26 @@ server <- function(input, output, session) {
     selectInput("exwas_outcome", "Choose the outcome variale:",
                 exposom_lists$phenotypes_list_og)
   })
+  observeEvent(input$exwas_stratified_selector, {
+    if(input$exwas_stratified_selector == TRUE){
+      showElement("exwas_stratified_variable")
+    }
+    else{
+      hideElement("exwas_stratified_variable")
+    }
+  })
+  output$exwas_stratified_variable <- renderUI({
+    selectInput("strat_variable", "Stratified variable:",
+                exposom_lists$phenotypes_list_og_class_factor[!(exposom_lists$phenotypes_list_og_class_factor %in% input$exwas_covariables)]
+                )
+  })
   output$mexwas_outcome_ui <- renderUI({
     selectInput("mexwas_outcome", "Choose the outcome variale:",
                 exposom_lists$phenotypes_list_og)
   })
   output$exwas_covariables_ui <- renderUI({
     selectInput("exwas_covariables", "Choose the covariable(s):",
-                exposom_lists$phenotypes_list, multiple = TRUE)
+                exposom_lists$phenotypes_list_og, multiple = TRUE)
   })
   output$ctd_select_disease <- renderUI({
     selectInput("ctd_disease", "Choose the disease:",

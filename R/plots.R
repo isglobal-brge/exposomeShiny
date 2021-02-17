@@ -107,17 +107,34 @@ output$exwas_as <- renderPlot({
     }
   }
   formula_plot <- as.formula(formula_plot)
-  exposom$fl <- exwas(exposom$exp, formula = formula_plot,
-              family = family_out)
-  exposom$exwas_eff <- 0.05/exposom$fl@effective
-  clr <- rainbow(length(familyNames(exposom$exp)))
-  names(clr) <- familyNames(exposom$exp)
-  if (input$exwas_choice == "Manhattan-like plot") {
-    plotExwas(exposom$fl, color = clr) + 
-      ggtitle("Exposome Association Study - Univariate Approach")}
-  else {plotEffect(exposom$fl)}
+  if(input$exwas_stratified_selector == TRUE){
+    exposom$fl <- lapply(levels(pData(exposom$exp)[[input$strat_variable]]), function(i){
+      mask <- pData(exposom$exp)[[input$strat_variable]]==i
+      exwas_i <- rexposome::exwas(exposom$exp[,mask], formula = formula_plot,
+                                  family = family_out, tef = FALSE)
+      exwas_i@formula <- update.formula(exwas_i@formula, 
+                                        as.formula(paste0("~ . + strata(", input$strat_variable, 
+                                                          "_", gsub("[[:space:]]|-|+|(|)", "", i), ")")))
+      return(exwas_i)
+    })
+    if(input$exwas_choice == "Manhattan-like plot"){
+      do.call(plotExwas, exposom$fl)
+      } else{do.call(plotEffect, exposom$fl)}
   }
+  else{
+    exposom$fl <- exwas(exposom$exp, formula = formula_plot,
+                        family = family_out)
+    exposom$exwas_eff <- 0.05/exposom$fl@effective
+    clr <- rainbow(length(familyNames(exposom$exp)))
+    names(clr) <- familyNames(exposom$exp)
+    if (input$exwas_choice == "Manhattan-like plot") {
+      plotExwas(exposom$fl, color = clr) + 
+        ggtitle("Exposome Association Study - Univariate Approach")}
+    else {plotEffect(exposom$fl)}
+  }
+ }
 })
+
 output$mea <- renderPlot({
   outcome <- input$mexwas_outcome
   family_out <- input$mexwas_output_family
@@ -258,4 +275,6 @@ output$go_ctd <- renderPlot({
   plot(ctd_d$ctd_chems, index_name = "go terms", representation = "network", filter.score = as.numeric(fscore))
 })
 
-
+output$multi_omics_results <- renderPlot({
+  plotIntegration(omics$crossomics)
+})

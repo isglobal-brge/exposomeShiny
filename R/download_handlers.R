@@ -10,10 +10,23 @@ output$download_impset <- downloadHandler(
 
 output$exwas_as_down_table <- downloadHandler(
   filename = function() {
-    paste0('exwas_results','.csv')
+    paste0('exwas_results',if(class(exposom$fl) == "list"){'.zip'}else{'.csv'})
   },
-  content = function(con) {
-    write.csv(exposom$fl@comparison, con, row.names = TRUE)
+  content = function(fname) {
+    if(class(exposom$fl) == "list"){
+      fs <- c()
+      tmpdir <- tempdir()
+      setwd(tempdir())
+      for (i in 1:length(exposom$fl)) {
+        path <- paste0(last(as.character(exposom$fl[[i]]@formula)), ".csv")
+        fs <- c(fs, path)
+        write.csv(rexposome::extract(exposom$fl[[i]]), path)
+      }
+      zip(zipfile=fname, files=fs)
+    }else{
+      write.csv(rexposome::extract(exposom$fl), fname)
+    }
+    
   }
 )
 
@@ -203,5 +216,13 @@ output$qqplot_down <- downloadHandler(
   },
   content = function(file){
     ggsave(file, plot = last_plot(), device = 'png')
+  }
+)
+output$multi_omics_down <- downloadHandler(
+  filename = function(){
+    paste('multi_omics_plot', '.png', sep = '')
+  },
+  content = function(file){
+    ggsave(file, plot = plotIntegration(omics$crossomics), device = 'png')
   }
 )

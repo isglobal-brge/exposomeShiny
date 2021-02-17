@@ -47,9 +47,10 @@ sidebar <- dashboardSidebar(
     menuItem("Multivariate ExWAS", icon = icon("bars"), tabName = "m_exwas",
                badgeColor = "green"),
     menuItem("Omic Data", icon = icon("th"), 
-             menuSubItem("Data Entry", tabName = "omic_data_entry"),
-             menuSubItem("Exposome subsetting", tabName = "epxosom_subset"),
+             # menuSubItem("Data Entry", tabName = "omic_data_entry"),
+             # menuSubItem("Exposome subsetting", tabName = "epxosom_subset"),
              menuSubItem("Association model", tabName = "omic_association"),
+             menuSubItem("Integration model", tabName = "omic_integration"),
              menuSubItem("Model visualization", tabName = "ass_vis"),
              menuSubItem("CTDquerier Results", tabName = "CTDquerier_res")
              )
@@ -224,7 +225,10 @@ body <- dashboardBody(
                                           list("Manhattan-like plot",
                                                "Effect of the model"),
                                           selected = "Manhattan-like plot"),
-                              uiOutput("exwas_outcome_ui")
+                              uiOutput("exwas_outcome_ui"),
+                              materialSwitch("exwas_stratified_selector", "Stratified analysis",
+                                             status = "primary"),
+                              hidden(uiOutput("exwas_stratified_variable"))
                        ),
                        column(6,
                               selectInput("exwas_output_family", "Choose the output family:",
@@ -237,7 +241,7 @@ body <- dashboardBody(
                               downloadButton("exwas_as_down", "Download plot"),
                               downloadButton("exwas_as_down_table", "Download ExWAS table of results"),
                               textOutput("exwas_effect"),
-                              withSpinner(plotOutput("exwas_as", click = "exwas_asPlotSelection", height = "700px"))
+                              withSpinner(plotOutput("exwas_as", click = "exwas_asPlotSelection", height = "1000px")),
                        ),
                        column(4,
                               h3("Selected point information:"),
@@ -295,27 +299,76 @@ body <- dashboardBody(
                              withSpinner(plotOutput("mea", height = "700px")))
             )
     ),
-    tabItem(tabName = "omic_data_entry",
-            tabPanel('Omic data entry',
-                     fluidRow(
-                       column(6,
-                              fileInput("omic_data", "Choose the omic data file"),
-                              actionButton("omic_data_load", "Load omic data")
-                       ),
-                     )
-            )
-    ),
-    tabItem(tabName = "epxosom_subset",
-            tabPanel('Exposome subsetting',
-                     uiOutput("expos_subset_choose"),
-                     actionButton("subset_and_add", "Subset and add")
-            )
-    ),
     tabItem(tabName = "omic_association",
-            tabPanel('Association model',
-                     uiOutput("omic_ass_formula"),
-                     checkboxInput("sva_checkbox", "SVA", value = FALSE),
-                     actionButton("omic_ass_run", "Run model")
+            fluidRow(
+              tabBox(width = 12,
+                     tabPanel('Omic data entry',
+                              fluidRow(
+                                column(6,
+                                       fileInput("omic_data", "Choose the omic data file"),
+                                       actionButton("omic_data_load", "Load omic data")
+                                ),
+                              )
+                     ),
+                     tabPanel('Exposome subsetting',
+                              uiOutput("expos_subset_choose"),
+                              actionButton("subset_and_add", "Subset and add")
+                     ),
+                     tabPanel('Association model',
+                              uiOutput("omic_ass_formula"),
+                              checkboxInput("sva_checkbox", "SVA", value = FALSE),
+                              actionButton("omic_ass_run", "Run model")
+                     )
+              )
+            )
+            ),
+    # tabItem(tabName = "omic_data_entry",
+    #         tabPanel('Omic data entry',
+    #                  fluidRow(
+    #                    column(6,
+    #                           fileInput("omic_data", "Choose the omic data file"),
+    #                           actionButton("omic_data_load", "Load omic data")
+    #                    ),
+    #                  )
+    #         )
+    # ),
+    # tabItem(tabName = "epxosom_subset",
+    #         tabPanel('Exposome subsetting',
+    #                  uiOutput("expos_subset_choose"),
+    #                  actionButton("subset_and_add", "Subset and add")
+    #         )
+    # ),
+    # tabItem(tabName = "omic_association",
+    #         tabPanel('Association model',
+    #                  uiOutput("omic_ass_formula"),
+    #                  checkboxInput("sva_checkbox", "SVA", value = FALSE),
+    #                  actionButton("omic_ass_run", "Run model")
+    #         )
+    # ),
+    tabItem(tabName = "omic_integration",
+            fluidRow(
+              tabBox(width = 12,
+                     tabPanel("Data input",
+                              fluidRow(id = "omics_int_1",
+                                column(6,
+                                       fileInput("omic_data_1", "Choose the omic data file"),
+                                       # uiOutput("omic_multi_entry"),
+                                       
+                                       ),
+                                column(6,
+                                       textInput("omic_type_1", "Type of file")
+                                       )
+                              ),
+                              selectInput("integration_method", "Choose integration method",
+                                          c("MCIA", "GCCA", "PLS")),
+                              actionButton("add_omic_data_fields", "More data"),
+                              actionButton("omic_data_multi_load", "Load data and perform integration")
+                     ),
+                     tabPanel("Results",
+                              plotOutput("multi_omics_results"),
+                              downloadButton("multi_omics_down", "Download plot")
+                     )
+              )
             )
     ),
     tabItem(tabName = "ass_vis",
