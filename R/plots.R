@@ -278,3 +278,19 @@ output$go_ctd <- renderPlot({
 output$multi_omics_results <- renderPlot({
   plotIntegration(omics$crossomics)
 })
+
+output$enrich_bar <- renderPlot({
+  barplot(enrichment$results, showCategory = input$enrich_bar_category)
+})
+
+output$enrich_dot <- renderPlot({
+  dotplot(enrichment$results, showCategory = input$enrich_dot_category)
+})
+
+output$enrich_up <- renderPlot({
+  upsetplot(enrichment$results, n = input$enrich_up_category)
+})
+
+output$enrich_em <- renderPlot({
+  emapplot(pairwise_termsim(enrichment$results), showCategory  = input$enrich_em_category)
+})

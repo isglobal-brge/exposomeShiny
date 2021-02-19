@@ -25,8 +25,28 @@ server <- function(input, output, session) {
   ctd_d <- reactiveValues(symbol = NULL, all_diseases = NULL, ctd_query = NULL,  
                           ctd_query_table = NULL, ctd_query_table_curated = NULL,
                           associated_diseases = NULL, ctd_chems = NULL)
+  enrichment <- reactiveValues(results = NULL)
   
   omic_num <- reactiveVal(1)
+  
+  js$disableTab("subset_omics")
+  js$disableTab("assoc_omics")
+  js$disableTab("viz_omics")
+  
+  js$disableTab("integration_results")
+  
+  js$disableTab("lost_found_ctd")
+  js$disableTab("diseases_ctd")
+  js$disableTab("curated_ctd")
+  js$disableTab("assoc_ctd")
+  js$disableTab("inference_ctd")
+  js$disableTab("assoc_matrix_ctd")
+  
+  js$disableTab("tab_results_enrich")
+  js$disableTab("barplot_enrich")
+  js$disableTab("dotplot_enrich")
+  js$disableTab("up_enrich")
+  js$disableTab("em_enrich")
   
   output$messageMenu <- renderMenu({
     info_messages$messageData <- data.frame(value = c(info_messages$exp_status, info_messages$lod_status, info_messages$missing_status,
@@ -277,6 +297,7 @@ server <- function(input, output, session) {
     info_messages$omic_status <- 100
     info_messages$omic_hue <- "green"
     })
+    js$enableTab("subset_omics")
   })
   observeEvent(input$subset_and_add, {
     withProgress(message = 'Subsetting and adding', value = 0, {
@@ -305,6 +326,7 @@ server <- function(input, output, session) {
       omics$multi <- add_eset(omics$multi, omics$omic_file, dataset.type = "expression", overwrite = TRUE)
     }
     })
+    js$enableTab("assoc_omics")
   })
   output$omic_ass_formula <- renderUI({
     selectInput("omic_form_set", "Choose association variables:",
@@ -336,6 +358,7 @@ server <- function(input, output, session) {
       exposom_lists$model_list <- vars
       info_messages$model_status <- 100
     })
+    js$enableTab("viz_omics")
   })
   output$qq_rid_select <- renderUI({
     selectInput("qq_rid_select_input", "Select the exposure to plot:",
@@ -442,7 +465,7 @@ server <- function(input, output, session) {
       incProgress(0.2)
       exposom$exp_std <- standardize(exposom$exp, method = "normal")
       incProgress(0.4)
-      exposom$exp_pca <- pca(exposom$exp_std)
+      exposom$exp_pca <- rexposome::pca(exposom$exp_std)
       incProgress(0.7)
       exposom$nm <- normalityTest(exposom$exp)
       exposom$nm[,3] <- as.numeric(formatC(exposom$nm[,3], format = "e", digits = 2))
@@ -479,7 +502,7 @@ server <- function(input, output, session) {
       })
       output$lod_imputation_type <- renderUI({
         selectInput("lod_imputation_type_input", "Choose imputation method: ",
-                    list("LOD/sqrt(2)", "Random imputation"))
+                    list("LOD/sqrt(2)", "QRILC"))
       })
       output$lod_substitution <- renderUI({
         actionButton("lod_substitution_input", "Perform LOD imputation with the values provided")
@@ -521,32 +544,60 @@ server <- function(input, output, session) {
       col_cont <- 1
       exposom$lod_candidates <- as.data.table(exposom$lod_candidates)
       if (input$lod_imputation_type_input == "LOD/sqrt(2)") {
+        
         exposom$lod_candidates[,LOD := LOD/sqrt(2)]
-      }
-      for (i in 1:nrow(exposom$lod_candidates_index)) {
-        if (input$lod_imputation_type_input == "LOD/sqrt(2)") {
-          col <- exposom$lod_candidates_index[i,2]
-          exposom$exposures_values[exposom$lod_candidates_index[i,1], 
-                           exposom$lod_candidates_index[i,2] := exposom$lod_candidates[col_cont, 2]]
-          if (i + 1 <= nrow(exposom$lod_candidates_index)) {
-            if (exposom$lod_candidates_index[i+1,2] != col) {col_cont <- col_cont + 1}}
-          incProgress(0.5)
+        for (i in 1:nrow(exposom$lod_candidates_index)) {
+          if (input$lod_imputation_type_input == "LOD/sqrt(2)") {
+            col <- exposom$lod_candidates_index[i,2]
+            exposom$exposures_values[exposom$lod_candidates_index[i,1], 
+                                     exposom$lod_candidates_index[i,2] := exposom$lod_candidates[col_cont, 2]]
+            if (i + 1 <= nrow(exposom$lod_candidates_index)) {
+              if (exposom$lod_candidates_index[i+1,2] != col) {col_cont <- col_cont + 1}}
+            incProgress(0.5)
+          }
         }
-        else {
-          col <- exposom$lod_candidates_index[i,2]
-          val <- rtrunc(sum(exposom$lod_candidates_index[,2] == col), 
-                        spec="lnorm", a=0, b=as.numeric(exposom$lod_candidates[col_cont, 2]))
-          exposom$lod_candidates[,new := val[1]]
-          exposom$lod_candidates[,LOD := new]
-          exposom$lod_candidates[,new := NULL]
-          exposom$exposures_values[exposom$lod_candidates_index[i,1], 
-                           exposom$lod_candidates_index[i,2] := val[1]]
-          if (i + 1 <= nrow(exposom$lod_candidates_index)) {
-            if (exposom$lod_candidates_index[i+1,2] != col) {col_cont <- col_cont + 1}}
-          incProgress(0.5)
-        }
+        
       }
-    })
+    
+    
+      # browser()
+      if(input$lod_imputation_type_input == "QRILC") {
+        
+        # browser()
+        incProgress(0.2)
+        aux <- exposom$exposures_values
+        for(i in seq(nrow(exposom$lod_candidates_index))){
+          aux[exposom$lod_candidates_index[i,1], exposom$lod_candidates_index[i,2]] <- NA
+        }
+        incProgress(0.2)
+        aux_imputed <- impute.QRILC(aux[,unique(exposom$lod_candidates_index[,2]), with = FALSE])[[1]]
+        i_aux <- 1
+        for(i in unique(exposom$lod_candidates_index[,2])){
+          aux[,(i):=as.numeric(unlist(aux_imputed[, i_aux, with = FALSE]))]
+          i_aux <- i_aux + 1
+        }
+        incProgress(0.2)
+        for(i in seq(nrow(exposom$lod_candidates_index))){
+          exposom$exposures_values[exposom$lod_candidates_index[i,1], exposom$lod_candidates_index[i,2] := as.numeric(aux[exposom$lod_candidates_index[i,1], exposom$lod_candidates_index[i,2], with = FALSE])]
+        }
+        # col <- exposom$lod_candidates_index[i,2]
+        # # val <- unlist(lapply(exposom$lod_candidates$LOD, function(i){
+        # #        rtrunc(1, spec="lnorm", a=0, b=i)
+        # #    }))
+        # a <- exposom$exposures_values[,unique(exposom$lod_candidates_index[,2]), with = FALSE]
+        # val <- rtrunc(sum(exposom$lod_candidates_index[,2] == col),
+        #               spec="lnorm", a=0, b=as.numeric(exposom$lod_candidates[col_cont, 2]))
+        # exposom$lod_candidates[,new := val[1]]
+        # exposom$lod_candidates[,LOD := new]
+        # exposom$lod_candidates[,new := NULL]
+        # exposom$exposures_values[exposom$lod_candidates_index[i,1],
+        #                  exposom$lod_candidates_index[i,2] := val[1]]
+        # if (i + 1 <= nrow(exposom$lod_candidates_index)) {
+        #   if (exposom$lod_candidates_index[i+1,2] != col) {col_cont <- col_cont + 1}}
+        # incProgress(0.5)
+        
+      }
+    
     info_messages$lod_status <- 100
     output$download_lod_data <- renderUI({
       downloadButton('download_lod', label = "Download LOD imputed exposures.csv")
@@ -560,7 +611,7 @@ server <- function(input, output, session) {
                                 description.famCol = input$description.famCol.tag, phenotype.samCol = input$phenotype.samCol.tag,
                                 exposures.asFactor = input$factor_num)
     exposom$exp_std <- standardize(exposom$exp, method = "normal")
-    exposom$exp_pca <- pca(exposom$exp_std)
+    exposom$exp_pca <- rexposome::pca(exposom$exp_std)
     exposom$nm <- normalityTest(exposom$exp)
     exposom$nm[,3] <- as.numeric(formatC(exposom$nm[,3], format = "e", digits = 2))
     exposom$normal_false <- as.data.table(exposom$nm)[normality == FALSE]
@@ -569,6 +620,7 @@ server <- function(input, output, session) {
     exposom$normal_false[, Method := "log"]
     exposom$normal_false <- as.data.frame(exposom$normal_false)
     #file.remove("lod_temp.csv")
+    })
   })
   output$eb_family_ui <- renderUI({
     selectInput("family", "Choose a family:",
@@ -806,6 +858,12 @@ server <- function(input, output, session) {
     incProgress(0.8)
     ctd_d$associated_diseases <- unique(ctd_d$ctd_query_table_curated$Disease.Name)
     })
+    js$enableTab("lost_found_ctd")
+    js$enableTab("diseases_ctd")
+    js$enableTab("curated_ctd")
+    js$enableTab("assoc_ctd")
+    js$enableTab("inference_ctd")
+    js$enableTab("assoc_matrix_ctd")
   })
   observeEvent(input$ctd_query_exwas, {
     withProgress(message = 'Performing the selected query', value = 0.5, {
@@ -839,7 +897,32 @@ server <- function(input, output, session) {
     load(env_path)
   })
   
-  observeEvent(input$stop,{browser()})
+  # observeEvent(input$stop,{browser()})
+  
+  observeEvent(input$enrich, {
+    withProgress(message = 'Performing enrichment analysis', value = 0, {
+      incProgress(0.2)
+      deGenes <- unlist(BiocGenerics::mget(ctd_d$symbol$x, envir=org.Hs.egALIAS2EG,
+                                           ifnotfound = NA))
+      incProgress(0.4)
+      if(input$db_enrichment == "GO"){
+        enrichment$results <- enrichGO(gene = deGenes, ont = "BP",
+                                       OrgDb ="org.Hs.eg.db",
+                                       readable=TRUE,
+                                       pvalueCutoff = input$enrich_thld)
+      }
+      else{
+        enrichment$results <- enrichKEGG(gene = deGenes,
+                                         organism = 'hsa',
+                                         pvalueCutoff = input$enrich_thld)
+      }
+    })
+    js$enableTab("tab_results_enrich")
+    js$enableTab("barplot_enrich")
+    js$enableTab("dotplot_enrich")
+    js$enableTab("up_enrich")
+    js$enableTab("em_enrich")
+  })
 }
 
 

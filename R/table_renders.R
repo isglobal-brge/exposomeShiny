@@ -77,11 +77,11 @@ output$selected_symbols_exwas <- renderDataTable(data.table(Chemicals = exposom$
 proxy = dataTableProxy('selected_symbols_exwas')
 output$ctd_diseases <- renderDataTable(as.data.table(ctd_d$ctd_query_table), class = 'cell-border stripe',
                                        options=list(columnDefs = list(list(visible=FALSE,
-                                                                           targets=c(4)))))
+                                                                           targets=c(4))), scrollX = TRUE))
 
 output$ctd_diseases_curated <- renderDataTable(as.data.table(ctd_d$ctd_query_table_curated), class = 'cell-border stripe',
                                                options=list(columnDefs = list(list(visible=FALSE,
-                                                                                   targets=c(3, 4)))))
+                                                                                   targets=c(3, 4))), scrollX = TRUE))
 
 output$visualize_table_pca_association_table <- renderDataTable(
   if(input$ass_choice == "Exposures to the principal components"){
@@ -93,3 +93,15 @@ output$visualize_table_pca_association_table <- renderDataTable(
                                                options=list(columnDefs = list(list(visible=FALSE,
                                                                                    targets=c(0))),
                                                             scrollX = TRUE))
+output$enrichment_table <- renderDataTable(
+  as.data.frame(enrichment$results), options=list(scrollX = TRUE)
+)
+output$querier_table_ctd <- renderDataTable(ctd_d$symbol, class = 'cell-border stripe',
+                                            selection = "multiple",
+                                            options=list(columnDefs = list(list(visible=FALSE,
+                                                                                targets=c(0)))))
+
+output$querier_table_enrich <- renderDataTable(ctd_d$symbol, class = 'cell-border stripe',
+                                            selection = "multiple",
+                                            options=list(columnDefs = list(list(visible=FALSE,
+                                                                                targets=c(0)))))

@@ -226,3 +226,30 @@ output$multi_omics_down <- downloadHandler(
     ggsave(file, plot = plotIntegration(omics$crossomics), device = 'png')
   }
 )
+
+output$enrich_res_download <- downloadHandler(
+  filename = function() {
+    paste0('enrichment_analysis','.csv')
+  },
+  content = function(con) {
+    write.csv(as.data.frame(enrichment$results), con, row.names = TRUE)
+  }
+)
+
+output$enrich_bar_download <- downloadHandler(
+  filename = function(){
+    paste('enrichment_barplot', '.png', sep = '')
+  },
+  content = function(file){
+    ggsave(file, plot = last_plot(), device = 'png')
+  }
+)
+
+output$enrich_dot_download <- downloadHandler(
+  filename = function(){
+    paste('enrichment_dotplot', '.png', sep = '')
+  },
+  content = function(file){
+    ggsave(file, plot = last_plot(), device = 'png')
+  }
+)
