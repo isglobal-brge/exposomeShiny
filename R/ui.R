@@ -22,6 +22,7 @@ library(clusterProfiler)
 library(enrichplot)
 library(ggupset)
 library(imputeLCMD)
+library(pls)
 
 jscode_tab <- "
 shinyjs.disableTab = function(name) {
@@ -449,7 +450,8 @@ body <- dashboardBody(
                      ),
                      tabPanel("Results",  value = "integration_results",
                               plotOutput("multi_omics_results"),
-                              downloadButton("multi_omics_down", "Download plot")
+                              downloadButton("multi_omics_down", "Download plot"),
+                              downloadButton("multi_omics_results_down", "Download integration results")
                      )
               )
             )

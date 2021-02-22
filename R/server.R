@@ -16,7 +16,7 @@ server <- function(input, output, session) {
                                   description_cols = NULL, exposures_cols = NULL, phenotypes_cols = NULL)
   omics <- reactiveValues(multi = NULL, omic_file = NULL, hit_lam_table = NULL, 
                           results_table = NULL, gexp = NULL, aux = NULL, dta = NULL,
-                          crossomics = NULL)
+                          crossomics = NULL, pls = NULL)
   info_messages <- reactiveValues(messageData = NULL, exp_status = 0, omic_status = 0,
                                   lod_status = 0, missing_status = 0, normality_status = 0,
                                   exp_hue = "red", omic_hue = "red",
@@ -84,6 +84,9 @@ server <- function(input, output, session) {
       omics$multi <- createMultiDataSet()
       omics$multi <- add_exp(omics$multi, exposom$exp)
       incProgress(0.5)
+      ##### FICAR AQUI CHECK QUE SI ES PLS NOMES SAGAFI EL PRIMER DATASET DE OMICA!!!!!!
+      ##### FICAR TAMBE A ALA UI QUE QUAN ES SELECCIONE PLS SURTI UN h5() QUE DIGUI
+      ##### QUE NOMES EL PRIMER OMICS SET ES FARÁ SERVIR@@!!@@
       for(i in seq(1, omic_num())){
         if(is.null(input[[paste0("omic_data_", i)]]$datapath) || is.null(input[[paste0("omic_type_", i)]])){
           next
@@ -98,14 +101,42 @@ server <- function(input, output, session) {
       }
       incProgress(0.8)
       if(input$integration_method == "MCIA"){
-        omics$crossomics <- crossomics(mds, method = "mcia", verbose = TRUE)
+        tryCatch({
+          omics$crossomics <- crossomics(omics$multi, method = "mcia", verbose = TRUE)
+        }, error = function(w){
+          shinyalert("Oops!", paste(w), type = "error")
+        })
       }
-      else if(input$integration_method == "GCCA"){
-        omics$crossomics <- crossomics(mds, method = "mcia", verbose = TRUE)
+      else if(input$integration_method == "MCCA"){
+        tryCatch({
+          omics$crossomics <- crossomics(omics$multi, method = "mcca", verbose = TRUE)
+        }, error = function(w){
+          shinyalert("Oops!", paste(w), type = "error")
+        })
       }
-      
+      else if(input$integration_method == "PLS"){
+        browser()
+        tryCatch({
+          # TROBAR CASOS COMUNS (ROWNAMES)
+          X <- data.matrix(expos(exposom$exp))
+          
+          y <- t(omics$multi@assayData[[names(omics$multi)[2]]]$exprs)
+          
+          # y <- data.matrix(pData(exposom$exp))
+          # merge(X,y,by="row.names",all.x=TRUE)
+          mydata <- data.frame(yy=I(y[rownames(y) %in% rownames(X),][order(as.numeric(rownames(y[rownames(y) %in% rownames(X),]))),]), 
+                               xx=I(X[rownames(X) %in% rownames(y),][order(as.numeric(rownames(X[rownames(X) %in% rownames(y),]))),]))
+          # yy=I(y[rownames(y) %in% rownames(X),][order(as.numeric(rownames(y[rownames(y) %in% rownames(X),]))),])
+          # xx=I(X[rownames(X) %in% rownames(y),][order(as.numeric(rownames(X[rownames(X) %in% rownames(y),]))),])
+          omics$pls <- pls::plsr(yy~xx, scale=F, data=mydata)
+          # a <- plsRglm::plsR(dataY = yy, dataX = xx)
+          # coef(a) # aixo es lo que surt com csv a descarregar resultats
+        }, error = function(w){
+          shinyalert("Oops!", paste(w), type = "error")
+        })
+      }
+      js$enableTab("integration_results")
     })
-    
     
     info_messages$omic_status <- 100
     info_messages$omic_hue <- "green"
@@ -230,7 +261,7 @@ server <- function(input, output, session) {
       incProgress(0.2)
       exposom$exp_std <- standardize(exposom$exp, method = "normal")
       incProgress(0.4)
-      exposom$exp_pca <- pca(exposom$exp_std, pca = TRUE)
+      exposom$exp_pca <- rexposome::pca(exposom$exp_std, pca = TRUE)
       incProgress(0.7)
       exposom$nm <- normalityTest(exposom$exp)
       exposom$nm[,3] <- as.numeric(formatC(exposom$nm[,3], format = "e", digits = 2))
@@ -407,6 +438,7 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$data_check, {
+    # browser()
     description_file <- input$description
     files$description <- description_file$datapath
     phenotypes_file <- input$phenotypes
@@ -426,7 +458,7 @@ server <- function(input, output, session) {
                    phenotype = files$phenotypes, exposures.samCol = input$exposures.samCol.tag, 
                    description.expCol = input$description.expCol.tag, 
                    description.famCol = input$description.famCol.tag, phenotype.samCol = input$phenotype.samCol.tag,
-                   sep = separator)
+                   sep = separator, exposures.asFactor = input$factor_num)
       showElement("data_load")
       hideElement("data_check")
       hideElement("explore_tables")
@@ -438,7 +470,7 @@ server <- function(input, output, session) {
       hideElement("factor_num")
       hideElement("lod_encoding")
     }, error = function(w){
-      shinyalert("Oops!", "Error with selected columns", type = "error")
+      shinyalert("Oops!", paste(w), type = "error")
     })
   })
   
@@ -465,7 +497,7 @@ server <- function(input, output, session) {
       incProgress(0.2)
       exposom$exp_std <- standardize(exposom$exp, method = "normal")
       incProgress(0.4)
-      exposom$exp_pca <- rexposome::pca(exposom$exp_std)
+      exposom$exp_pca <- rexposome::pca(exposom$exp_std, pca = TRUE)
       incProgress(0.7)
       exposom$nm <- normalityTest(exposom$exp)
       exposom$nm[,3] <- as.numeric(formatC(exposom$nm[,3], format = "e", digits = 2))
@@ -611,7 +643,7 @@ server <- function(input, output, session) {
                                 description.famCol = input$description.famCol.tag, phenotype.samCol = input$phenotype.samCol.tag,
                                 exposures.asFactor = input$factor_num)
     exposom$exp_std <- standardize(exposom$exp, method = "normal")
-    exposom$exp_pca <- rexposome::pca(exposom$exp_std)
+    exposom$exp_pca <- rexposome::pca(exposom$exp_std, pca = TRUE)
     exposom$nm <- normalityTest(exposom$exp)
     exposom$nm[,3] <- as.numeric(formatC(exposom$nm[,3], format = "e", digits = 2))
     exposom$normal_false <- as.data.table(exposom$nm)[normality == FALSE]
@@ -719,8 +751,8 @@ server <- function(input, output, session) {
       ee <- read.csv(files$exposures, header=TRUE)
       pp <- read.csv(files$phenotypes, header=TRUE)
       
-      rownames(ee) <- ee$idnum
-      rownames(pp) <- pp$idnum
+      rownames(ee) <- ee[[input$exposures.samCol.tag]]
+      rownames(pp) <- pp[[input$phenotype.samCol.tag]]
       
       incProgress(0.2)
       
@@ -756,7 +788,7 @@ server <- function(input, output, session) {
       ex_1 <- toES(exposom$exp_imp, rid = 1)
       exposom$exp <- ex_1
       exposom$exp_std <- standardize(exposom$exp, method = "normal")
-      exposom$exp_pca <- pca(exposom$exp_std)
+      exposom$exp_pca <- rexposome::pca(exposom$exp_std, pca = TRUE)
       exposom$nm <- normalityTest(exposom$exp)
       exposom$nm[,3] <- as.numeric(formatC(exposom$nm[,3], format = "e", digits = 2))
       exposom$normal_false <- as.data.table(exposom$nm)[normality == FALSE]

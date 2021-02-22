@@ -1,0 +1,16 @@
+id,Family,Description,Matrix,TimePoint,Type,LOD,LODUnit
+Ben_p,Air,Benzene levels (µg/m3),NA,Pregnancy,numeric,NA,NA
+Ben_t1,Air,Benzene levels (µg/m3),NA,T1,numeric,NA,NA
+Ben_t2,Air,Benzene levels (µg/m3),NA,T2,numeric,NA,NA
+Ben_t3,Air,Benzene levels (µg/m3),NA,T3,numeric,NA,NA
+BPA_p,BPA,BPA (µg/g creatine),urine,Pregnancy,numeric,NA,NA
+BPA_t1,BPA,BPA (µg/g creatine),urine,T1,numeric,NA,NA
+BPA_t3,BPA,BPA (µg/g creatine),urine,T3,numeric,NA,NA
+NO2_p,Air,NO2 levels (µg/m3),NA,Pregnancy,numeric,NA,NA
+NO2_t1,Air,NO2 levels (µg/m3),NA,T1,numeric,NA,NA
+NO2_t2,Air,NO2 levels (µg/m3),NA,T2,numeric,NA,NA
+NO2_t3,Air,NO2 levels (µg/m3),NA,T3,numeric,NA,NA
+PCB118,PCBs,PCB 118 (ng/g lipid adjusted),serum,NA,numeric,NA,NA
+PCB138,PCBs,PCB 138 (ng/g lipid adjusted),serum,NA,numeric,NA,NA
+PCB153,PCBs,PCB 153 (ng/g lipid adjusted),serum,NA,numeric,NA,NA
+PCB180,PCBs,PCB 180 (ng/g lipid adjusted),serum,NA,numeric,NA,NA
