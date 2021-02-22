@@ -276,7 +276,11 @@ output$go_ctd <- renderPlot({
 })
 
 output$multi_omics_results <- renderPlot({
-  plotIntegration(omics$crossomics)
+  if(input$integration_method == "PLS"){
+    plot(omics$pls)
+  } else{
+    plotIntegration(omics$crossomics)
+  }
 })
 
 output$enrich_bar <- renderPlot({

@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     libssh2-1-dev \
     libjpeg-dev \
-    libxml2 \
+    libxml2 
 
 # Install R Dependencies - installs the r packages you need - if this step fails you’re likely 
 # missing system libraries that a package requires
@@ -50,10 +50,17 @@ RUN R -e "devtools::install_version('shinycssloaders', version = '0.3', repos = 
 RUN R -e "devtools::install_version('BiocManager', version = '1.30.10', repos = 'http://cran.us.r-project.org')"
 RUN R -e "devtools::install_version('shinyjs', version = '2.0.0', repos = 'http://cran.us.r-project.org')"
 RUN R -e "devtools::install_version('shinyWidgets', version = '0.5.4', repos = 'http://cran.us.r-project.org')"
+RUN R -e "devtools::install_version('ggupset', version = '0.3.0', repos = 'http://cran.us.r-project.org')"
+RUN R -e "BiocManager::install('pcaMethods')"
+RUN R -e "BiocManager::install('impute')"
+RUN R -e "devtools::install_version('imputeLCMD', version = '2.0', repos = 'http://cran.us.r-project.org')"
 # RUN R -e "devtools::install_version('jpeg', version = '0.1-8.1', repos = 'http://cran.us.r-project.org')"
 RUN R -e "BiocManager::install('rexposome')"
 RUN R -e "BiocManager::install('omicRexposome')"
 RUN R -e "BiocManager::install('MultiDataSet')"
+RUN R -e "BiocManager::install('clusterProfiler')"
+RUN R -e "BiocManager::install('enrichplot')"
+RUN R -e "devtools::install_version('pastecs', version = '1.3.21', repos = 'http://cran.us.r-project.org')"
 RUN apt-get update && apt-get install -y \
  
     libbz2-dev \

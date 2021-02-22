@@ -443,7 +443,7 @@ body <- dashboardBody(
                                        )
                               ),
                               selectInput("integration_method", "Choose integration method",
-                                          c("MCIA", "GCCA", "PLS")),
+                                          c("MCIA", "MCCA", "PLS")),
                               actionButton("add_omic_data_fields", "More data"),
                               actionButton("omic_data_multi_load", "Load data and perform integration")
                      ),
