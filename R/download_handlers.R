@@ -253,3 +253,16 @@ output$enrich_dot_download <- downloadHandler(
     ggsave(file, plot = last_plot(), device = 'png')
   }
 )
+
+output$multi_omics_results_down <- downloadHandler(
+  filename = function() {
+    paste0('integration_results','.RDS')
+  },
+  content = function(con) {
+    if(input$integration_method == "PLS"){
+      saveRDS(omics$pls, file = con)
+    }else{
+      saveRDS(omics$crossomics, file = con)
+    }
+  }
+)

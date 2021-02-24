@@ -1,4 +1,4 @@
-id,Family,Description,Matrix,TimePoint,Type,LOD,LODUnit
+exposure,Family,Description,Matrix,TimePoint,Type,LOD,LODUnit
 Ben_p,Air,Benzene levels (µg/m3),NA,Pregnancy,numeric,NA,NA
 Ben_t1,Air,Benzene levels (µg/m3),NA,T1,numeric,NA,NA
 Ben_t2,Air,Benzene levels (µg/m3),NA,T2,numeric,NA,NA

@@ -115,11 +115,10 @@ server <- function(input, output, session) {
         })
       }
       else if(input$integration_method == "PLS"){
-        browser()
         tryCatch({
           # TROBAR CASOS COMUNS (ROWNAMES)
           X <- data.matrix(expos(exposom$exp))
-          
+          browser()
           y <- t(omics$multi@assayData[[names(omics$multi)[2]]]$exprs)
           
           # y <- data.matrix(pData(exposom$exp))
@@ -572,87 +571,94 @@ server <- function(input, output, session) {
     replaceData(proxy, exposom$ctd_exp, resetPaging = FALSE)
   })
   observeEvent(input$lod_substitution_input, {
-    withProgress(message = 'Performing LOD imputation', value = 0, {
-      col_cont <- 1
-      exposom$lod_candidates <- as.data.table(exposom$lod_candidates)
-      if (input$lod_imputation_type_input == "LOD/sqrt(2)") {
-        
-        exposom$lod_candidates[,LOD := LOD/sqrt(2)]
-        for (i in 1:nrow(exposom$lod_candidates_index)) {
-          if (input$lod_imputation_type_input == "LOD/sqrt(2)") {
-            col <- exposom$lod_candidates_index[i,2]
-            exposom$exposures_values[exposom$lod_candidates_index[i,1], 
-                                     exposom$lod_candidates_index[i,2] := exposom$lod_candidates[col_cont, 2]]
-            if (i + 1 <= nrow(exposom$lod_candidates_index)) {
-              if (exposom$lod_candidates_index[i+1,2] != col) {col_cont <- col_cont + 1}}
-            incProgress(0.5)
+    tryCatch({
+      withProgress(message = 'Performing LOD imputation', value = 0, {
+        col_cont <- 1
+        exposom$lod_candidates <- as.data.table(exposom$lod_candidates)
+        if (input$lod_imputation_type_input == "LOD/sqrt(2)") {
+          
+          exposom$lod_candidates[,LOD := LOD/sqrt(2)]
+          for (i in 1:nrow(exposom$lod_candidates_index)) {
+            if (input$lod_imputation_type_input == "LOD/sqrt(2)") {
+              col <- exposom$lod_candidates_index[i,2]
+              exposom$exposures_values[exposom$lod_candidates_index[i,1], 
+                                       exposom$lod_candidates_index[i,2] := exposom$lod_candidates[col_cont, 2]]
+              if (i + 1 <= nrow(exposom$lod_candidates_index)) {
+                if (exposom$lod_candidates_index[i+1,2] != col) {col_cont <- col_cont + 1}}
+              incProgress(0.5)
+            }
           }
+          
         }
         
-      }
-    
-    
-      # browser()
-      if(input$lod_imputation_type_input == "QRILC") {
         
         # browser()
-        incProgress(0.2)
-        aux <- exposom$exposures_values
-        for(i in seq(nrow(exposom$lod_candidates_index))){
-          aux[exposom$lod_candidates_index[i,1], exposom$lod_candidates_index[i,2]] <- NA
+        if(input$lod_imputation_type_input == "QRILC") {
+          
+          # browser()
+          incProgress(0.2)
+          aux <- exposom$exposures_values
+          # browser()
+          for(i in seq(nrow(exposom$lod_candidates_index))){
+            aux[exposom$lod_candidates_index[i,1], exposom$lod_candidates_index[i,2] := NA]
+            # aux[exposom$lod_candidates_index[i,1], exposom$lod_candidates_index[i,2]] <- NA
+          }
+          incProgress(0.2)
+          # browser()
+          aux_imputed <- impute.QRILC(dplyr::mutate_all(aux[,unique(exposom$lod_candidates_index[,2]), with = FALSE], 
+                                                        function(x) as.numeric(x)))[[1]]
+          i_aux <- 1
+          for(i in unique(exposom$lod_candidates_index[,2])){
+            aux[,(i):=as.numeric(unlist(aux_imputed[, i_aux, with = FALSE]))]
+            i_aux <- i_aux + 1
+          }
+          incProgress(0.2)
+          for(i in seq(nrow(exposom$lod_candidates_index))){
+            exposom$exposures_values[exposom$lod_candidates_index[i,1], exposom$lod_candidates_index[i,2] := as.numeric(aux[exposom$lod_candidates_index[i,1], exposom$lod_candidates_index[i,2], with = FALSE])]
+          }
+          # col <- exposom$lod_candidates_index[i,2]
+          # # val <- unlist(lapply(exposom$lod_candidates$LOD, function(i){
+          # #        rtrunc(1, spec="lnorm", a=0, b=i)
+          # #    }))
+          # a <- exposom$exposures_values[,unique(exposom$lod_candidates_index[,2]), with = FALSE]
+          # val <- rtrunc(sum(exposom$lod_candidates_index[,2] == col),
+          #               spec="lnorm", a=0, b=as.numeric(exposom$lod_candidates[col_cont, 2]))
+          # exposom$lod_candidates[,new := val[1]]
+          # exposom$lod_candidates[,LOD := new]
+          # exposom$lod_candidates[,new := NULL]
+          # exposom$exposures_values[exposom$lod_candidates_index[i,1],
+          #                  exposom$lod_candidates_index[i,2] := val[1]]
+          # if (i + 1 <= nrow(exposom$lod_candidates_index)) {
+          #   if (exposom$lod_candidates_index[i+1,2] != col) {col_cont <- col_cont + 1}}
+          # incProgress(0.5)
+          
         }
-        incProgress(0.2)
-        aux_imputed <- impute.QRILC(aux[,unique(exposom$lod_candidates_index[,2]), with = FALSE])[[1]]
-        i_aux <- 1
-        for(i in unique(exposom$lod_candidates_index[,2])){
-          aux[,(i):=as.numeric(unlist(aux_imputed[, i_aux, with = FALSE]))]
-          i_aux <- i_aux + 1
-        }
-        incProgress(0.2)
-        for(i in seq(nrow(exposom$lod_candidates_index))){
-          exposom$exposures_values[exposom$lod_candidates_index[i,1], exposom$lod_candidates_index[i,2] := as.numeric(aux[exposom$lod_candidates_index[i,1], exposom$lod_candidates_index[i,2], with = FALSE])]
-        }
-        # col <- exposom$lod_candidates_index[i,2]
-        # # val <- unlist(lapply(exposom$lod_candidates$LOD, function(i){
-        # #        rtrunc(1, spec="lnorm", a=0, b=i)
-        # #    }))
-        # a <- exposom$exposures_values[,unique(exposom$lod_candidates_index[,2]), with = FALSE]
-        # val <- rtrunc(sum(exposom$lod_candidates_index[,2] == col),
-        #               spec="lnorm", a=0, b=as.numeric(exposom$lod_candidates[col_cont, 2]))
-        # exposom$lod_candidates[,new := val[1]]
-        # exposom$lod_candidates[,LOD := new]
-        # exposom$lod_candidates[,new := NULL]
-        # exposom$exposures_values[exposom$lod_candidates_index[i,1],
-        #                  exposom$lod_candidates_index[i,2] := val[1]]
-        # if (i + 1 <= nrow(exposom$lod_candidates_index)) {
-        #   if (exposom$lod_candidates_index[i+1,2] != col) {col_cont <- col_cont + 1}}
-        # incProgress(0.5)
         
-      }
+        info_messages$lod_status <- 100
+        output$download_lod_data <- renderUI({
+          downloadButton('download_lod', label = "Download LOD imputed exposures.csv")
+        })
+        
+        write.csv(exposom$exposures_values, file = "../temp/lod_temp.csv", row.names=FALSE)
+        files$exposures <- "../temp/lod_temp.csv"
+        exposom$exp <- readExposome(exposures = files$exposures, description = files$description, 
+                                    phenotype = files$phenotypes, exposures.samCol = input$exposures.samCol.tag, 
+                                    description.expCol = input$description.expCol.tag, 
+                                    description.famCol = input$description.famCol.tag, phenotype.samCol = input$phenotype.samCol.tag,
+                                    exposures.asFactor = input$factor_num)
+        exposom$exp_std <- standardize(exposom$exp, method = "normal")
+        exposom$exp_pca <- rexposome::pca(exposom$exp_std, pca = TRUE)
+        exposom$nm <- normalityTest(exposom$exp)
+        exposom$nm[,3] <- as.numeric(formatC(exposom$nm[,3], format = "e", digits = 2))
+        exposom$normal_false <- as.data.table(exposom$nm)[normality == FALSE]
+        exposom$normal_false[, normality := NULL]
+        exposom$normal_false[, p.value := NULL]
+        exposom$normal_false[, Method := "log"]
+        exposom$normal_false <- as.data.frame(exposom$normal_false)
+        #file.remove("lod_temp.csv")
+      })
+    }, error = function(w){shinyalert("Oops!", paste(w), type = "error")})
     
-    info_messages$lod_status <- 100
-    output$download_lod_data <- renderUI({
-      downloadButton('download_lod', label = "Download LOD imputed exposures.csv")
-    })
-    
-    write.csv(exposom$exposures_values, file = "../temp/lod_temp.csv", row.names=FALSE)
-    files$exposures <- "../temp/lod_temp.csv"
-    exposom$exp <- readExposome(exposures = files$exposures, description = files$description, 
-                                phenotype = files$phenotypes, exposures.samCol = input$exposures.samCol.tag, 
-                                description.expCol = input$description.expCol.tag, 
-                                description.famCol = input$description.famCol.tag, phenotype.samCol = input$phenotype.samCol.tag,
-                                exposures.asFactor = input$factor_num)
-    exposom$exp_std <- standardize(exposom$exp, method = "normal")
-    exposom$exp_pca <- rexposome::pca(exposom$exp_std, pca = TRUE)
-    exposom$nm <- normalityTest(exposom$exp)
-    exposom$nm[,3] <- as.numeric(formatC(exposom$nm[,3], format = "e", digits = 2))
-    exposom$normal_false <- as.data.table(exposom$nm)[normality == FALSE]
-    exposom$normal_false[, normality := NULL]
-    exposom$normal_false[, p.value := NULL]
-    exposom$normal_false[, Method := "log"]
-    exposom$normal_false <- as.data.frame(exposom$normal_false)
-    #file.remove("lod_temp.csv")
-    })
   })
   output$eb_family_ui <- renderUI({
     selectInput("family", "Choose a family:",
