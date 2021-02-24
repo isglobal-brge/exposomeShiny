@@ -609,28 +609,15 @@ server <- function(input, output, session) {
                                                         function(x) as.numeric(x)))[[1]]
           i_aux <- 1
           for(i in unique(exposom$lod_candidates_index[,2])){
-            aux[,(i):=as.numeric(unlist(aux_imputed[, i_aux, with = FALSE]))]
+            aux[tryCatch({exposom$lod_candidates_index[exposom$lod_candidates_index[, 2]==i,][,1]}, error = function(w){
+              exposom$lod_candidates_index[exposom$lod_candidates_index[, 2]==i,][1]})
+              ,(i):=as.numeric(unlist(aux_imputed[, i_aux, with = FALSE]))[tryCatch({exposom$lod_candidates_index[exposom$lod_candidates_index[, 2]==i,][,1]}, error = function(w){
+                exposom$lod_candidates_index[exposom$lod_candidates_index[, 2]==i,][1]})]]
             i_aux <- i_aux + 1
           }
           incProgress(0.2)
-          for(i in seq(nrow(exposom$lod_candidates_index))){
-            exposom$exposures_values[exposom$lod_candidates_index[i,1], exposom$lod_candidates_index[i,2] := as.numeric(aux[exposom$lod_candidates_index[i,1], exposom$lod_candidates_index[i,2], with = FALSE])]
-          }
-          # col <- exposom$lod_candidates_index[i,2]
-          # # val <- unlist(lapply(exposom$lod_candidates$LOD, function(i){
-          # #        rtrunc(1, spec="lnorm", a=0, b=i)
-          # #    }))
-          # a <- exposom$exposures_values[,unique(exposom$lod_candidates_index[,2]), with = FALSE]
-          # val <- rtrunc(sum(exposom$lod_candidates_index[,2] == col),
-          #               spec="lnorm", a=0, b=as.numeric(exposom$lod_candidates[col_cont, 2]))
-          # exposom$lod_candidates[,new := val[1]]
-          # exposom$lod_candidates[,LOD := new]
-          # exposom$lod_candidates[,new := NULL]
-          # exposom$exposures_values[exposom$lod_candidates_index[i,1],
-          #                  exposom$lod_candidates_index[i,2] := val[1]]
-          # if (i + 1 <= nrow(exposom$lod_candidates_index)) {
-          #   if (exposom$lod_candidates_index[i+1,2] != col) {col_cont <- col_cont + 1}}
-          # incProgress(0.5)
+          exposom$exposures_values <- dplyr::mutate_at(aux, .vars = unique(exposom$lod_candidates_index[,2]),
+                                                        function(x) as.numeric(x))
           
         }
         
