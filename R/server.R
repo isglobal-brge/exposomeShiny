@@ -84,18 +84,17 @@ server <- function(input, output, session) {
       omics$multi <- createMultiDataSet()
       omics$multi <- add_exp(omics$multi, exposom$exp)
       incProgress(0.5)
-      ##### FICAR AQUI CHECK QUE SI ES PLS NOMES SAGAFI EL PRIMER DATASET DE OMICA!!!!!!
-      ##### FICAR TAMBE A ALA UI QUE QUAN ES SELECCIONE PLS SURTI UN h5() QUE DIGUI
-      ##### QUE NOMES EL PRIMER OMICS SET ES FARÁ SERVIR@@!!@@
       for(i in seq(1, omic_num())){
         if(is.null(input[[paste0("omic_data_", i)]]$datapath) || is.null(input[[paste0("omic_type_", i)]])){
           next
         }
-        if(input[[paste0("omic_type_", i)]] == "expression"){
-          omics$multi <- add_genexp(omics$multi, get(load(input[[paste0("omic_data_", i)]]$datapath)))
+        dataset <- get(load(input[[paste0("omic_data_", i)]]$datapath))
+        if(class(dataset) == "ExpressionSet"){
+          omics$multi <- add_eset(omics$multi, dataset,
+                                  dataset.type = input[[paste0("omic_type_", i)]])
         }
-        else{
-          omics$multi <- add_eset(omics$multi, get(load(input[[paste0("omic_data_", i)]]$datapath)), 
+        else if(class(dataset) == "RangedSummarizedExperiment"){
+          omics$multi <- add_rse(omics$multi, dataset, 
                                   dataset.type = input[[paste0("omic_type_", i)]])
         }
       }
@@ -118,16 +117,49 @@ server <- function(input, output, session) {
         tryCatch({
           # TROBAR CASOS COMUNS (ROWNAMES)
           X <- data.matrix(expos(exposom$exp))
-          browser()
+          # browser()
           y <- t(omics$multi@assayData[[names(omics$multi)[2]]]$exprs)
           
           # y <- data.matrix(pData(exposom$exp))
           # merge(X,y,by="row.names",all.x=TRUE)
-          mydata <- data.frame(yy=I(y[rownames(y) %in% rownames(X),][order(as.numeric(rownames(y[rownames(y) %in% rownames(X),]))),]), 
-                               xx=I(X[rownames(X) %in% rownames(y),][order(as.numeric(rownames(X[rownames(X) %in% rownames(y),]))),]))
-          # yy=I(y[rownames(y) %in% rownames(X),][order(as.numeric(rownames(y[rownames(y) %in% rownames(X),]))),])
-          # xx=I(X[rownames(X) %in% rownames(y),][order(as.numeric(rownames(X[rownames(X) %in% rownames(y),]))),])
-          omics$pls <- pls::plsr(yy~xx, scale=F, data=mydata)
+          # mydata <- data.frame(yy=I(y[rownames(y) %in% rownames(X),][order(as.numeric(rownames(y[rownames(y) %in% rownames(X),]))),]), 
+          #                      xx=I(X[rownames(X) %in% rownames(y),][order(as.numeric(rownames(X[rownames(X) %in% rownames(y),]))),]))
+          yy=I(y[rownames(y) %in% rownames(X),][order(as.numeric(rownames(y[rownames(y) %in% rownames(X),]))),])
+          xx=I(X[rownames(X) %in% rownames(y),][order(as.numeric(rownames(X[rownames(X) %in% rownames(y),]))),])
+          omics$pls <- mixOmics::pls(xx,yy, ncomp = 3)
+          
+          omics$pls_groups <- pData(omics$multi)$exposures[rownames(X) %in% rownames(y),] %>% 
+            dplyr::select(where(is.factor))
+          output$pls_plot_selector_ui <- renderUI({
+            selectInput("pls_plot_selector", "Plot type", c("Individuals", "Variables", "Correlation", 
+                                                            "Variable selection"))
+          })
+          output$pls_grouping_selector_ui <- renderUI({
+            selectInput("pls_grouping_selector", "Plot grouping", c("None", colnames(omics$pls_groups)))
+          })
+          output$pls_variables_ui <- renderUI({
+            fluidRow(column(6,
+                            selectInput("pls_variables_list", "Select variables to be extracted:", 
+                                        c("Exposome", "Omics"))
+            ),
+            column(6,
+                   numericInput("pls_variables_component", "Select principal component",
+                                1, 1, 3, 1)
+            ))
+          })
+          output$pls_corr_component_ui <- renderUI({
+            numericInput("pls_corr_component", "Select principal component",
+                         1, 1, 3, 1)
+          })
+          output$pls_variables_text <- renderText({
+            if(input$pls_variables_list == "Exposome"){
+              mixOmics::selectVar(omics$pls, comp = input$pls_variables_component)$X$name
+            }else{
+              mixOmics::selectVar(omics$pls, comp = input$pls_variables_component)$Y$name
+            }
+          })
+          
+          # omics$pls <- pls::plsr(yy~xx, scale=F, data=mydata)
           # a <- plsRglm::plsR(dataY = yy, dataX = xx)
           # coef(a) # aixo es lo que surt com csv a descarregar resultats
         }, error = function(w){
@@ -300,7 +332,7 @@ server <- function(input, output, session) {
                     list("LOD/sqrt(2)", "QRILC"))
       })
       output$lod_substitution <- renderUI({
-        actionButton("lod_substitution_input", "Perform LOD imputation with the values provided")
+        actionButton("lod_substitution_input", "Perform LOD imputation")
       })
     }
     info_messages$exp_status <- 100
@@ -488,11 +520,31 @@ server <- function(input, output, session) {
       else{
         separator <- input$data_separator
       }
-      exposom$exp <- readExposome(exposures = files$exposures, description = files$description, 
-                                  phenotype = files$phenotypes, exposures.samCol = input$exposures.samCol.tag, 
-                                  description.expCol = input$description.expCol.tag, 
-                                  description.famCol = input$description.famCol.tag, phenotype.samCol = input$phenotype.samCol.tag,
-                                  sep = separator, exposures.asFactor = input$factor_num)
+      na.strings = c("NA", "-", "?", " ", "")
+      # browser()
+      exp <- utils::read.table(files$exposures, header = TRUE,
+                               row.names = input$exposures.samCol.tag, sep = separator, na.strings = na.strings)
+      phe <- utils::read.table(files$phenotypes, header = TRUE,
+                               row.names = input$phenotype.samCol.tag, sep = separator, na.strings = na.strings,
+                               stringsAsFactors = TRUE)
+      desc <- utils::read.table(files$description, header = TRUE,
+                                row.names = input$description.expCol.tag, sep = separator, na.strings = na.strings)
+      ## ------------------------------------------------------------------------
+      # browser()
+      indx <- sapply(exp, is.character)
+      # exp[indx] <- lapply(exp[indx], if(uniqueN < input$factor_num ){droplevels(exclude = input$lod_encoding)})
+      exp[indx] <- lapply(exp[indx], function(col){if(uniqueN(col) < input$factor_num ){droplevels(as.factor(col), exclude = input$lod_encoding)}else{col}})
+      
+      exposom$exp <- loadExposome( exposures = exp, description = desc,
+                                phenotype = phe, input$description.famCol.tag, input$factor_num,
+                                warnings )
+      
+      
+      # exposom$exp <- readExposome(exposures = files$exposures, description = files$description,
+      #                             phenotype = files$phenotypes, exposures.samCol = input$exposures.samCol.tag,
+      #                             description.expCol = input$description.expCol.tag,
+      #                             description.famCol = input$description.famCol.tag, phenotype.samCol = input$phenotype.samCol.tag,
+      #                             sep = separator, exposures.asFactor = input$factor_num)
       incProgress(0.2)
       exposom$exp_std <- standardize(exposom$exp, method = "normal")
       incProgress(0.4)
@@ -515,11 +567,8 @@ server <- function(input, output, session) {
     exposom_lists$exposure_names <- as.list(familyNames(exposom$exp))
     exposom_lists$exposure_names_withall <- append(exposom_lists$exposure_names,
                                                    'All', after = 0)
-    exposom$exposures_values <- as.data.table(read.csv(files$exposures))
-    description_values <- read.csv(files$description)
-    exposom$lod_candidates <- unique(as.list(as.character(description_values[which(exposom$exposures_values == input$lod_encoding,
-                                                                                   arr.ind = TRUE)[,2] - 1,2])))
-    
+    exposom$exposures_values <- as.data.frame(exp) # as.data.table(read.csv(files$exposures))
+    exposom$lod_candidates <- names(unlist(lapply(exposom$exposures_values, function(col){if(any(input$lod_encoding %in% col)){TRUE}})))
     exposom$lod_candidates_index <- which(exposom$exposures_values == input$lod_encoding, arr.ind = TRUE)
     if (length(exposom$lod_candidates) != 0) {
       output$lod_help <- renderUI({
@@ -536,7 +585,7 @@ server <- function(input, output, session) {
                     list("LOD/sqrt(2)", "QRILC"))
       })
       output$lod_substitution <- renderUI({
-        actionButton("lod_substitution_input", "Perform LOD imputation with the values provided")
+        actionButton("lod_substitution_input", "Perform LOD imputation")
       })
     }
     info_messages$exp_status <- 100
@@ -576,17 +625,14 @@ server <- function(input, output, session) {
         col_cont <- 1
         exposom$lod_candidates <- as.data.table(exposom$lod_candidates)
         if (input$lod_imputation_type_input == "LOD/sqrt(2)") {
-          
           exposom$lod_candidates[,LOD := LOD/sqrt(2)]
           for (i in 1:nrow(exposom$lod_candidates_index)) {
-            if (input$lod_imputation_type_input == "LOD/sqrt(2)") {
-              col <- exposom$lod_candidates_index[i,2]
-              exposom$exposures_values[exposom$lod_candidates_index[i,1], 
-                                       exposom$lod_candidates_index[i,2] := exposom$lod_candidates[col_cont, 2]]
-              if (i + 1 <= nrow(exposom$lod_candidates_index)) {
-                if (exposom$lod_candidates_index[i+1,2] != col) {col_cont <- col_cont + 1}}
-              incProgress(0.5)
-            }
+            col <- exposom$lod_candidates_index[i,2]
+            as.data.table(exposom$exposures_values)[exposom$lod_candidates_index[i,1], 
+                                     exposom$lod_candidates_index[i,2] := exposom$lod_candidates[col_cont, 2]]
+            if (i + 1 <= nrow(exposom$lod_candidates_index)) {
+              if (exposom$lod_candidates_index[i+1,2] != col) {col_cont <- col_cont + 1}}
+            incProgress(0.5)
           }
           
         }
@@ -597,7 +643,7 @@ server <- function(input, output, session) {
           
           # browser()
           incProgress(0.2)
-          aux <- exposom$exposures_values
+          aux <- as.data.table(exposom$exposures_values)
           # browser()
           for(i in seq(nrow(exposom$lod_candidates_index))){
             aux[exposom$lod_candidates_index[i,1], exposom$lod_candidates_index[i,2] := NA]
@@ -607,7 +653,10 @@ server <- function(input, output, session) {
           # browser()
           aux_imputed <- impute.QRILC(dplyr::mutate_all(aux[,unique(exposom$lod_candidates_index[,2]), with = FALSE], 
                                                         function(x) as.numeric(x)))[[1]]
+          aux_imputed[, names(aux_imputed) := lapply(.SD, as.numeric)]
+          # browser()
           i_aux <- 1
+          # browser()
           for(i in unique(exposom$lod_candidates_index[,2])){
             aux[tryCatch({exposom$lod_candidates_index[exposom$lod_candidates_index[, 2]==i,][,1]}, error = function(w){
               exposom$lod_candidates_index[exposom$lod_candidates_index[, 2]==i,][1]})
@@ -616,17 +665,20 @@ server <- function(input, output, session) {
             i_aux <- i_aux + 1
           }
           incProgress(0.2)
+          # browser()
           exposom$exposures_values <- dplyr::mutate_at(aux, .vars = unique(exposom$lod_candidates_index[,2]),
                                                         function(x) as.numeric(x))
           
         }
-        
+        # browser()
         info_messages$lod_status <- 100
         output$download_lod_data <- renderUI({
           downloadButton('download_lod', label = "Download LOD imputed exposures.csv")
         })
-        
-        write.csv(exposom$exposures_values, file = "../temp/lod_temp.csv", row.names=FALSE)
+        # browser()
+        exposom$exposures_values[[input$exposures.samCol.tag]] <-  rownames(expos(exposom$exp))
+        exposom$exposures_values <- exposom$exposures_values %>% dplyr::relocate(input$exposures.samCol.tag, 1)
+        write.csv(exposom$exposures_values, file = "../temp/lod_temp.csv", row.names=FALSE, quote = FALSE)
         files$exposures <- "../temp/lod_temp.csv"
         exposom$exp <- readExposome(exposures = files$exposures, description = files$description, 
                                     phenotype = files$phenotypes, exposures.samCol = input$exposures.samCol.tag, 
@@ -743,10 +795,9 @@ server <- function(input, output, session) {
       dd <- read.csv(files$description, header=TRUE, stringsAsFactors=FALSE)
       ee <- read.csv(files$exposures, header=TRUE)
       pp <- read.csv(files$phenotypes, header=TRUE)
-      
       rownames(ee) <- ee[[input$exposures.samCol.tag]]
       rownames(pp) <- pp[[input$phenotype.samCol.tag]]
-      
+      # browser()
       incProgress(0.2)
       
       dta <- cbind(ee[ , -1], pp[ , -1])
@@ -777,7 +828,8 @@ server <- function(input, output, session) {
       
       exposom$exp_imp <- loadImputed(data = me, description = dd, 
                             description.famCol = input$description.famCol.tag, 
-                            description.expCol = input$description.expCol.tag)
+                            description.expCol = input$description.expCol.tag,
+                            input$factor_num)
       ex_1 <- toES(exposom$exp_imp, rid = 1)
       exposom$exp <- ex_1
       exposom$exp_std <- standardize(exposom$exp, method = "normal")

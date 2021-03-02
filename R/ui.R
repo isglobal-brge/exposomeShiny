@@ -22,7 +22,7 @@ library(clusterProfiler)
 library(enrichplot)
 library(ggupset)
 library(imputeLCMD)
-library(pls)
+library(mixOmics)
 
 jscode_tab <- "
 shinyjs.disableTab = function(name) {
@@ -74,7 +74,7 @@ sidebar <- dashboardSidebar(
              menuSubItem("ExWAS", tabName = "n_exwas"),
              menuSubItem("Chemical CTDquerier Results", tabName = "CTDquerier_exwas")
              ),
-    menuItem("Multivariate ExWAS", icon = icon("bars"), tabName = "m_exwas",
+    menuItem("Variable selection ExWAS", icon = icon("bars"), tabName = "m_exwas",
                badgeColor = "green"),
     menuItem("Omic Data", icon = icon("th"), 
              # menuSubItem("Data Entry", tabName = "omic_data_entry"),
@@ -321,7 +321,7 @@ body <- dashboardBody(
               )
     )),
     tabItem(tabName = "m_exwas",
-            tabPanel('Multivariate ExWAS',
+            tabPanel('Variable selection ExWAS',
                      uiOutput("mexwas_outcome_ui"),
                      selectInput("mexwas_output_family", "Choose the output family:",
                                  list("binomial","gaussian","poisson")),
@@ -436,20 +436,24 @@ body <- dashboardBody(
                               fluidRow(id = "omics_int_1",
                                 column(6,
                                        fileInput("omic_data_1", "Choose the omic data file"),
-                                       # uiOutput("omic_multi_entry"),
                                        
                                        ),
                                 column(6,
                                        textInput("omic_type_1", "Type of file")
                                        )
                               ),
+                              actionButton("add_omic_data_fields", "More data"),
                               selectInput("integration_method", "Choose integration method",
                                           c("MCIA", "MCCA", "PLS")),
-                              actionButton("add_omic_data_fields", "More data"),
                               actionButton("omic_data_multi_load", "Load data and perform integration")
                      ),
                      tabPanel("Results",  value = "integration_results",
+                              uiOutput("pls_plot_selector_ui"),
+                              hidden(uiOutput("pls_grouping_selector_ui")),
+                              hidden(uiOutput("pls_variables_ui")),
+                              hidden(uiOutput("pls_corr_component_ui")),
                               plotOutput("multi_omics_results"),
+                              hidden(verbatimTextOutput("pls_variables_text")),
                               downloadButton("multi_omics_down", "Download plot"),
                               downloadButton("multi_omics_results_down", "Download integration results")
                      )

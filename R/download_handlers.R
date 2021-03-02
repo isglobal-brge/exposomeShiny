@@ -143,7 +143,7 @@ output$download_lod <- downloadHandler(
     paste0('exposures_lod_imputed','.csv')
   },
   content = function(con) {
-    write.csv(exposom$exposures_values, con, row.names = FALSE)
+    write.csv(exposom$exposures_values, con, row.names=FALSE, quote = FALSE)
   }
 )
 output$inf_down <- downloadHandler(
@@ -178,7 +178,7 @@ output$gene_chem_inter_ctd_down <- downloadHandler(
     ggsave(file, plot = last_plot(), device = 'png')
   }
 )
-output$disease_ctd <- downloadHandler(
+output$disease_ctd_down <- downloadHandler(
   filename = function(){
     paste('disease_ctd', '.png', sep = '')
   },

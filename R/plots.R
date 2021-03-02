@@ -171,9 +171,8 @@ output$mea <- renderPlot({
       dd <- read.csv(files$description, header=TRUE, stringsAsFactors=FALSE)
       ee <- read.csv(files$exposures, header=TRUE)
       pp <- read.csv(files$phenotypes, header=TRUE)
-      
-      rownames(ee) <- ee$idnum
-      rownames(pp) <- pp$idnum
+      rownames(ee) <- ee[[input$exposures.samCol.tag]]
+      rownames(pp) <- pp[[input$phenotype.samCol.tag]]
       
       incProgress(0.2)
       
@@ -187,13 +186,9 @@ output$mea <- renderPlot({
           dta[, ii] <- as.numeric(dta[ , ii])
         }
       }
-      
-      bd_column_inde <- grep("birthdate", colnames(dta))
-      
       incProgress(0.5)
-      imp <- mice(dta[ , -bd_column_inde], pred = quickpred(dta[ , -bd_column_inde],
-                                                            mincor = 0.2, minpuc = 0.4), 
-                  seed = 38788, m = 5, maxit = 10, printFlag = FALSE)
+      imp <- mice(dta, pred = quickpred(dta,
+                            mincor = 0.2, minpuc = 0.4), seed = 38788, m = 5, maxit = 10, printFlag = FALSE)
       
       incProgress(0.7)
       
@@ -212,7 +207,7 @@ output$mea <- renderPlot({
       
       ex_1 <- toES(exp_imp, rid = 1)
       exposom$fl_m <- mexwas(ex_1, phenotype = outcome, family = family_out)
-      browser()
+
     })
     plotExwas(exposom$fl_m) +
       ylab("") +
@@ -277,7 +272,36 @@ output$go_ctd <- renderPlot({
 
 output$multi_omics_results <- renderPlot({
   if(input$integration_method == "PLS"){
-    plot(omics$pls)
+    if(input$pls_plot_selector == "Individuals"){
+      hideElement("pls_variables_text")
+      hideElement("pls_variables_ui")
+      showElement("pls_grouping_selector_ui")
+      hideElement("pls_corr_component_ui")
+      if(input$pls_grouping_selector != "None"){
+        mixOmics::plotIndiv(omics$pls, rep.space = "XY-variate", group = omics$pls_groups[[input$pls_grouping_selector]], 
+                            legend = TRUE, legend.title = input$pls_grouping_selector)
+      }else{
+        mixOmics::plotIndiv(omics$pls, rep.space = "XY-variate", legend = FALSE)
+      }
+    }else if(input$pls_plot_selector == "Variables"){
+      hideElement("pls_variables_text")
+      hideElement("pls_variables_ui")
+      hideElement("pls_grouping_selector_ui")
+      hideElement("pls_corr_component_ui")
+      mixOmics::plotVar(omics$pls)
+    } else if(input$pls_plot_selector == "Correlation"){
+      hideElement("pls_variables_text")
+      hideElement("pls_variables_ui")
+      hideElement("pls_grouping_selector_ui")
+      showElement("pls_corr_component_ui")
+      mixOmics::cim(omics$pls, comp = input$pls_corr_component)
+    } else if(input$pls_plot_selector == "Variable selection"){
+      showElement("pls_variables_text")
+      showElement("pls_variables_ui")
+      hideElement("pls_grouping_selector_ui")
+      hideElement("pls_corr_component_ui")
+      mixOmics::plotLoadings(omics$pls, comp = input$pls_variables_component)
+    }
   } else{
     plotIntegration(omics$crossomics)
   }
