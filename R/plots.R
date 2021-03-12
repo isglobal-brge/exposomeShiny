@@ -272,6 +272,7 @@ output$go_ctd <- renderPlot({
 
 output$multi_omics_results <- renderPlot({
   if(input$integration_method == "PLS"){
+    showElement("pls_plot_selector_ui")
     if(input$pls_plot_selector == "Individuals"){
       hideElement("pls_variables_text")
       hideElement("pls_variables_ui")
