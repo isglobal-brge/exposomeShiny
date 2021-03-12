@@ -303,6 +303,11 @@ output$multi_omics_results <- renderPlot({
       mixOmics::plotLoadings(omics$pls, comp = input$pls_variables_component)
     }
   } else{
+    hideElement("pls_variables_text")
+    hideElement("pls_variables_ui")
+    hideElement("pls_grouping_selector_ui")
+    hideElement("pls_corr_component_ui")
+    hideElement("pls_plot_selector_ui")
     plotIntegration(omics$crossomics)
   }
 })
@@ -312,7 +317,7 @@ output$enrich_bar <- renderPlot({
 })
 
 output$enrich_dot <- renderPlot({
-  dotplot(enrichment$results, showCategory = input$enrich_dot_category)
+  clusterProfiler::dotplot(enrichment$results, showCategory = input$enrich_dot_category)
 })
 
 output$enrich_up <- renderPlot({
